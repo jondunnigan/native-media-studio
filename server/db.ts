@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertMediaJob, InsertUser, mediaJobs, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,53 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function createMediaJob(job: InsertMediaJob) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  await db.insert(mediaJobs).values(job);
+  return getMediaJob(job.id);
+}
+
+export async function getMediaJob(id: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  const rows = await db.select().from(mediaJobs).where(eq(mediaJobs.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updateMediaJob(id: string, values: Partial<InsertMediaJob>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  await db.update(mediaJobs).set(values).where(eq(mediaJobs.id, id));
+  return getMediaJob(id);
+}
+
+export async function listMediaJobsForSession(ownerSessionId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  return db.select().from(mediaJobs)
+    .where(eq(mediaJobs.ownerSessionId, ownerSessionId))
+    .orderBy(desc(mediaJobs.createdAt))
+    .limit(20);
+}
+
+export async function listExpiredMediaJobs(now: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  return db.select().from(mediaJobs)
+    .where(and(lte(mediaJobs.expiresAt, now), eq(mediaJobs.status, "ready")))
+    .orderBy(asc(mediaJobs.expiresAt));
+}
+
+export async function getReadyMediaJobByToken(id: string, tokenHash: string, now: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is unavailable");
+  const rows = await db.select().from(mediaJobs).where(and(
+    eq(mediaJobs.id, id),
+    eq(mediaJobs.downloadTokenHash, tokenHash),
+    eq(mediaJobs.status, "ready"),
+  )).limit(1);
+  const job = rows[0];
+  if (!job || !job.expiresAt || job.expiresAt.getTime() <= now.getTime()) return undefined;
+  return job;
+}

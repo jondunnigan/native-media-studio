@@ -3,11 +3,13 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { createReadStream } from "fs";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { claimDownload, cleanExpiredMediaJobs, getAnonymousSessionId, getOwnedMediaJob, markDownloadedAndRemove, onJobEvent } from "../media";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,29 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  app.get("/api/media/download/:id", async (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    const job = await claimDownload(req.params.id, token);
+    if (!job || !job.outputPath || !job.outputName) return res.status(404).send("This download link is invalid or has expired.");
+    res.setHeader("Content-Type", job.outputMime || "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(job.outputName)}`);
+    const stream = createReadStream(job.outputPath);
+    stream.on("error", () => res.status(404).end());
+    res.on("finish", () => void markDownloadedAndRemove(job));
+    stream.pipe(res);
+  });
+  app.get("/api/media/jobs/:id/events", async (req, res) => {
+    const sessionId = getAnonymousSessionId(req, res);
+    const job = await getOwnedMediaJob(req.params.id, sessionId);
+    if (!job) return res.status(404).end();
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    res.write(`data: ${JSON.stringify(job)}\n\n`);
+    const unsubscribe = onJobEvent(job.id, event => res.write(`data: ${JSON.stringify(event)}\n\n`));
+    req.on("close", unsubscribe);
+  });
   // tRPC API
   app.use(
     "/api/trpc",
@@ -61,6 +86,7 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+  void cleanExpiredMediaJobs().catch(error => console.error("[Media cleanup]", error));
 }
 
 startServer().catch(console.error);

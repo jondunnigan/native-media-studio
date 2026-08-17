@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: mysql://native_media:${MYSQL_PASSWORD:-change-this-before-public-use}@db:3306/native_media
+      MEDIA_WORK_DIR: /app/data/media-jobs
+    volumes:
+      - media_jobs:/app/data/media-jobs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: native_media
+      MYSQL_USER: native_media
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-this-before-public-use}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-root-password-before-public-use}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  media-cleanup:
+    image: alpine:3.20
+    restart: unless-stopped
+    volumes:
+      - media_jobs:/media-jobs
+      - ./docker/cleanup.sh:/cleanup.sh:ro
+    command: ["/bin/sh", "/cleanup.sh"]
+
+volumes:
+  mysql_data:
+  media_jobs:

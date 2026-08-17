@@ -27,3 +27,11 @@
 - [x] Verify and refresh the preview runtime so upstream source rejection always renders as the guided availability state.
 - [x] Prevent expected upstream source-rejection states from being logged as global API mutation errors.
 - [x] Include the client error-presentation policy test in the configured Vitest suite.
+- [x] Add a Pterodactyl-compatible image and startup command that honors the panel-provided port.
+- [x] Make database initialization idempotent when existing tables were created before Drizzle migration tracking.
+- [x] Add Pterodactyl environment variables, persistent mount guidance, and panel deployment documentation.
+- [x] Validate the Pterodactyl build and startup scripts.
+- [x] Verify the complete expected table schema before reconciliation stamps historical Drizzle migrations.
+- [x] Add automated migration-reconciler tests for fresh and pre-existing schema states.
+- [x] Exercise the Pterodactyl entrypoint with panel-style port and persistent-storage settings.
+- [x] Ensure the Pterodactyl-assigned SERVER_PORT always overrides any inherited default PORT value.

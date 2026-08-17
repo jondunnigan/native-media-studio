@@ -33,6 +33,10 @@ Open `http://localhost:3000`. Compose exposes **only one public port**: the web 
 
 Temporary source and output files are stored only in the `media_jobs` named volume. The database contains metadata and a hash of the download token, not media bytes. To remove all temporary media manually during local development, run `docker compose down -v`; this also removes the database volume.
 
+## Pterodactyl deployment
+
+For Pterodactyl, use the dedicated image and egg under [`pterodactyl/`](./pterodactyl/README.md). Pterodactyl requires a prebuilt registry image, uses its own assigned `SERVER_PORT`, and persists server files under `/home/container`; the supplied image and entrypoint account for all three. It also reconciles a compatible database that already contains Native Media Studio tables but lacks Drizzle migration tracking, preventing the `media_jobs already exists` startup failure.
+
 ## Operations and constraints
 
 The provided container serializes active media conversions to avoid exhausting a small self-hosted machine. Increase capacity only after considering CPU, memory, temporary disk, network bandwidth, and the applicable rights to each source. A quality choice means the best available source stream within the requested ceiling; the service does not artificially upscale video or claim that every original source format is always available.

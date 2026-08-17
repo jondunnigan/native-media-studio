@@ -19,4 +19,4 @@ ENV PORT=3000
 ENV MEDIA_WORK_DIR=/app/data/media-jobs
 EXPOSE 3000
 
-CMD ["sh", "-c", "corepack pnpm drizzle-kit migrate && node dist/index.js"]
+CMD ["node", "scripts/start-production.mjs"]

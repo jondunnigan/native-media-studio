@@ -24,3 +24,6 @@
 - [x] Translate upstream YouTube verification rejections into a clear policy-aware message without bypassing controls.
 - [x] Diagnose YouTube upstream verification failures and implement compliant source-availability handling.
 - [x] Document the supported self-hosted deployment conditions for upstream source access.
+- [x] Verify and refresh the preview runtime so upstream source rejection always renders as the guided availability state.
+- [x] Prevent expected upstream source-rejection states from being logged as global API mutation errors.
+- [x] Include the client error-presentation policy test in the configured Vitest suite.

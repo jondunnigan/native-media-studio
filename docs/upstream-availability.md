@@ -8,6 +8,12 @@ The preview interface exposes the URL field and the required authorization ackno
 
 For the controlled preview check, the application submitted the openly licensed test URL only after the acknowledgement was selected. The request is an inspection-only metadata call; it does not create a conversion or retrieve a media file.
 
+After restarting the development server, a fresh browser session loaded the source-inspection interface and entered the same controlled URL to validate that shared mutation-cache logging is suppressed for the guided availability condition.
+
+The fresh client selected the required acknowledgement and initiated the inspection request against the known managed-preview verification block. The next verification checks both the rendered notice and absence of the prior global mutation-error log.
+
+Validation completed: the fresh client rendered the guided “This source is unavailable from this server” notice, and the browser console contained no output after the request. The prior global `[API Mutation Error]` presentation is therefore suppressed for this intentionally handled condition.
+
 ## Source findings
 
 The yt-dlp project’s issue discussion notes that YouTube blocks anonymous access from many datacenter IP addresses and describes IP blocks as outside yt-dlp’s control. [yt-dlp issue #12475](https://github.com/yt-dlp/yt-dlp/issues/12475)

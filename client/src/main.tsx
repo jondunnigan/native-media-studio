@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { isGuidedSourceAvailabilityMessage } from "./lib/apiErrorPolicy";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -21,11 +22,14 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   startLogin();
 };
 
+const shouldLogApiError = (error: unknown) =>
+  !(error instanceof Error && isGuidedSourceAvailabilityMessage(error.message));
+
 queryClient.getQueryCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
-    console.error("[API Query Error]", error);
+    if (shouldLogApiError(error)) console.error("[API Query Error]", error);
   }
 });
 
@@ -33,7 +37,7 @@ queryClient.getMutationCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
-    console.error("[API Mutation Error]", error);
+    if (shouldLogApiError(error)) console.error("[API Mutation Error]", error);
   }
 });
 

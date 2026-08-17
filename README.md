@@ -51,7 +51,7 @@ yt-dlp --version && ffmpeg -version
 
 The Docker image already installs both tools. If a local executable is missing, the interface now returns an actionable setup error instead of the raw `spawn ... ENOENT` process message.
 
-YouTube may independently reject automated requests from a particular server or IP address. Native Media Studio reports this as an upstream availability issue and deliberately does not import browser cookies, use account credentials, or bypass verification controls. Try again later or use an authorized source that is publicly reachable from the host.
+YouTube may independently reject automated requests from a particular server or IP address. Native Media Studio reports this as an upstream availability issue and deliberately does not import browser cookies, use account credentials, or bypass verification controls. The managed development preview uses shared datacenter infrastructure and may be rejected even when your own local deployment is not. For the supported deployment path, run `docker compose up --build -d` from a trusted self-hosted machine or network, and use only authorized sources that are publicly reachable from that host.
 
 | Command | Purpose |
 | --- | --- |

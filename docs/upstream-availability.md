@@ -1,0 +1,19 @@
+# Upstream Source Availability Notes
+
+## Observed preview behavior
+
+On 2026-08-17, the preview runtime successfully launched `yt-dlp` after local provisioning, which eliminated the prior `spawn yt-dlp ENOENT` error. A live inspection request then reached YouTube but received the platform message that the server must sign in to confirm it is not a bot. This demonstrates an upstream verification block rather than a missing executable or application process failure.
+
+The preview interface exposes the URL field and the required authorization acknowledgement before inspection can begin. The guided source-availability state is verified against the same upstream rejection condition rather than a fabricated frontend-only error.
+
+For the controlled preview check, the application submitted the openly licensed test URL only after the acknowledgement was selected. The request is an inspection-only metadata call; it does not create a conversion or retrieve a media file.
+
+## Source findings
+
+The yt-dlp project’s issue discussion notes that YouTube blocks anonymous access from many datacenter IP addresses and describes IP blocks as outside yt-dlp’s control. [yt-dlp issue #12475](https://github.com/yt-dlp/yt-dlp/issues/12475)
+
+YouTube’s Terms of Service contain restrictions on downloading content except where the service expressly authorizes it, with permission from YouTube and applicable rights holders, or as permitted by law. [YouTube Terms of Service](https://www.youtube.com/static?template=terms)
+
+## Product decision
+
+Native Media Studio will not add account-cookie import, account credential handling, CAPTCHA solving, or any other verification-bypass workflow. The supported path is a self-hosted deployment from a network where the authorized source is publicly accessible. The interface should identify source rejection as an upstream availability condition, not misrepresent it as a missing app dependency.

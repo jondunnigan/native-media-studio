@@ -63,6 +63,7 @@ export default function Home() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [liveJob, setLiveJob] = useState<ProgressEvent | null>(null);
   const [eventStreamDisconnected, setEventStreamDisconnected] = useState(false);
+  const [sourceAvailabilityError, setSourceAvailabilityError] = useState<string | null>(null);
   const inspect = trpc.media.inspect.useMutation();
   const start = trpc.media.start.useMutation();
   const history = trpc.media.list.useQuery(undefined, { refetchInterval: 5000 });
@@ -109,8 +110,14 @@ export default function Home() {
       setActiveJobId(null);
       setLiveJob(null);
       setEventStreamDisconnected(false);
+      setSourceAvailabilityError(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "We could not inspect that link.");
+      const message = error instanceof Error ? error.message : "We could not inspect that link.";
+      if (message.includes("YouTube rejected this server’s automated request")) {
+        setSourceAvailabilityError(message);
+        return;
+      }
+      toast.error(message);
     }
   }
 
@@ -192,6 +199,16 @@ export default function Home() {
               </label>
             </form>
           </div>
+
+          <AnimatePresence>
+            {sourceAvailabilityError && (
+              <motion.aside className="availability-card" aria-live="polite" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ type: "spring", stiffness: 280, damping: 25 }}>
+                <div className="availability-icon"><ShieldCheck size={18} /></div>
+                <div><strong>This source is unavailable from this server.</strong><p>YouTube is requiring verification from the current host. The media tools are installed; this is an upstream network restriction. Run the supplied Docker stack on your own trusted network, then retry content you are authorized to download.</p></div>
+                <button className="icon-button" onClick={() => setSourceAvailabilityError(null)} aria-label="Dismiss source availability notice"><X size={18} /></button>
+              </motion.aside>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence mode="wait">
             {source && (

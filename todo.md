@@ -22,3 +22,5 @@
 - [x] Validate URL inspection prerequisites from the preview environment after provisioning media tools.
 - [x] Exercise a real preview inspection request to confirm the yt-dlp executable launches without ENOENT.
 - [x] Translate upstream YouTube verification rejections into a clear policy-aware message without bypassing controls.
+- [x] Diagnose YouTube upstream verification failures and implement compliant source-availability handling.
+- [x] Document the supported self-hosted deployment conditions for upstream source access.

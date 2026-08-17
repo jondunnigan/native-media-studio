@@ -124,6 +124,20 @@ export function parseProgressPercent(text: string): number | null {
   return Math.max(0, Math.min(99, Math.floor(value)));
 }
 
+export function describeMediaCommandError(command: string, error: unknown): string {
+  if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
+    return `The required ${command} executable is not installed or is not on PATH. Install ${command}${command === "yt-dlp" ? " with ‘sudo pip3 install --upgrade yt-dlp’" : " and try again"}, then restart the server.`;
+  }
+  return error instanceof Error ? error.message : "The media command could not be started.";
+}
+
+export function describeMediaCommandFailure(command: string, output: string): string {
+  if (command === "yt-dlp" && /sign in to confirm you.?re not a bot|confirm you.?re not a bot/i.test(output)) {
+    return "YouTube rejected this server’s automated request for this source. Native Media Studio does not use account credentials or bypass verification controls. Please try a different source, wait and retry later, or use the application only where the source is publicly available to your self-hosted server.";
+  }
+  return output || `${command} ended without a successful result.`;
+}
+
 export function isReadyWithinExpiry(job: Pick<MediaJob, "status" | "expiresAt">, now = new Date()): boolean {
   return job.status === "ready" && Boolean(job.expiresAt && job.expiresAt.getTime() > now.getTime());
 }
@@ -166,12 +180,12 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
     }, timeoutMs);
     child.on("error", error => {
       clearTimeout(timeout);
-      reject(error);
+      reject(new Error(describeMediaCommandError(command, error)));
     });
     child.on("close", code => {
       clearTimeout(timeout);
       if (code === 0) resolve();
-      else reject(new Error(output || `yt-dlp exited with code ${code ?? "unknown"}.`));
+      else reject(new Error(describeMediaCommandFailure(command, output || `${command} exited with code ${code ?? "unknown"}.`)));
     });
   });
 }

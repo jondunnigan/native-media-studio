@@ -41,6 +41,18 @@ The downloader depends on the behavior and availability of upstream sources. Som
 
 ## Development commands
 
+For preview/local development outside Docker, ensure both media executables resolve before starting the server:
+
+```bash
+sudo pip3 install --upgrade yt-dlp
+sudo apt-get update && sudo apt-get install -y ffmpeg
+yt-dlp --version && ffmpeg -version
+```
+
+The Docker image already installs both tools. If a local executable is missing, the interface now returns an actionable setup error instead of the raw `spawn ... ENOENT` process message.
+
+YouTube may independently reject automated requests from a particular server or IP address. Native Media Studio reports this as an upstream availability issue and deliberately does not import browser cookies, use account credentials, or bypass verification controls. Try again later or use an authorized source that is publicly reachable from the host.
+
 | Command | Purpose |
 | --- | --- |
 | `pnpm dev` | Starts the local development server. Local development requires `yt-dlp`, `ffmpeg`, and a configured MySQL-compatible `DATABASE_URL`. |

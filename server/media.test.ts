@@ -12,7 +12,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, parseProgressPercent } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, parseProgressPercent } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -28,6 +28,18 @@ describe("progress parsing", () => {
     expect(parseProgressPercent("download: 43.9%")).toBe(43);
     expect(parseProgressPercent("[download] 100.0% of 12MiB")).toBe(99);
     expect(parseProgressPercent("merging formats")).toBeNull();
+  });
+});
+
+describe("media tool prerequisites", () => {
+  it("converts an absent executable error into a clear setup instruction", () => {
+    expect(describeMediaCommandError("yt-dlp", { code: "ENOENT" })).toContain("sudo pip3 install --upgrade yt-dlp");
+  });
+
+  it("does not expose cookie-bypass guidance when YouTube rejects automation", () => {
+    const message = describeMediaCommandFailure("yt-dlp", "ERROR: [youtube] abc: Sign in to confirm you’re not a bot. Use --cookies-from-browser");
+    expect(message).toContain("does not use account credentials");
+    expect(message).not.toContain("--cookies-from-browser");
   });
 });
 

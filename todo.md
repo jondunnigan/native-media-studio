@@ -18,3 +18,7 @@
 - [x] Add lifecycle and one-time-delivery behavior tests.
 - [x] Add an explicit one-time download invalidation test.
 - [x] Test the real post-download invalidation flow and second-claim rejection.
+- [x] Provision yt-dlp and ffmpeg for the development runtime and explain missing-tool failures clearly.
+- [x] Validate URL inspection prerequisites from the preview environment after provisioning media tools.
+- [x] Exercise a real preview inspection request to confirm the yt-dlp executable launches without ENOENT.
+- [x] Translate upstream YouTube verification rejections into a clear policy-aware message without bypassing controls.

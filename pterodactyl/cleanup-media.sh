@@ -17,7 +17,7 @@ cleanup_once() {
       rm -rf "$job_dir"
       echo "[cleanup] removed expired media job $(basename "$job_dir")"
     fi
-  done < <(find "$media_root" -mindepth 2 -maxdepth 2 -type f -name .ready -print 2>/dev/null)
+  done < <(find "$media_root" -mindepth 2 -maxdepth 2 -type f \( -name .ready -o -name .failed \) -print 2>/dev/null)
 }
 
 if [ "${1:-}" = "--watch" ]; then

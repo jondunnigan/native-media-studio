@@ -1,8 +1,8 @@
 import { trpc } from "@/lib/trpc";
-import { triggerBrowserDownload } from "@/lib/browserDownload";
+import { startReadyDownload } from "@/lib/readyDownload";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, CircleHelp, Clock3, Download, FileAudio2, Film, Link2, Loader2, LockKeyhole, Play, ShieldCheck, Sparkles, X } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type MediaMode = "video" | "audio";
@@ -69,6 +69,7 @@ export default function Home() {
   const [sourceAvailabilityError, setSourceAvailabilityError] = useState<string | null>(null);
   const [readyDownload, setReadyDownload] = useState<ReadyDownload | null>(null);
   const announcedReadyJobs = useRef(new Set<string>());
+  const autoDownloadStartedJobs = useRef(new Set<string>());
   const inspect = trpc.media.inspect.useMutation();
   const start = trpc.media.start.useMutation();
   const history = trpc.media.list.useQuery(undefined, { refetchInterval: 5000 });
@@ -88,7 +89,11 @@ export default function Home() {
     announcedReadyJobs.current.add(status.id);
     const name = status.outputName || "Your file";
     setReadyDownload({ id: status.id, outputName: status.outputName, outputBytes: status.outputBytes, expiresAt: status.expiresAt });
-    toast.success(`${name} is ready to download.`);
+    toast.success(`${name} is ready. Starting your download now.`);
+    if (!autoDownloadStartedJobs.current.has(status.id)) {
+      autoDownloadStartedJobs.current.add(status.id);
+      void download(status.id, { automatic: true });
+    }
   }, [status?.id, status?.status, status?.outputName, status?.outputBytes, status?.expiresAt]);
 
   useEffect(() => {
@@ -158,15 +163,24 @@ export default function Home() {
     }
   }
 
-  async function download(id: string) {
+  async function download(id: string, options: { automatic?: boolean } = {}) {
     try {
       const result = await createDownloadLink.mutateAsync({ id });
       const filename = history.data?.find(job => job.id === id)?.outputName || readyDownload?.outputName || "media-download";
-      triggerBrowserDownload(document, result.url, filename);
+      await startReadyDownload({
+        id,
+        filename,
+        documentRef: document,
+        requestSignedUrl: async () => result,
+      });
       setReadyDownload(current => current?.id === id ? null : current);
-      toast.success("Your browser download has started.");
+      toast.success(options.automatic ? "Your browser download has started." : "Your browser download has started.");
       void history.refetch();
     } catch (error) {
+      if (options.automatic) {
+        toast.error("Your file is ready, but the browser blocked the automatic download. Use Download file to continue.");
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "This file is no longer available.");
     }
   }
@@ -285,7 +299,7 @@ export default function Home() {
                   <div className="completion-icon"><Check size={24} strokeWidth={3} /></div>
                   <p className="completion-kicker">Conversion complete</p>
                   <h2 id="download-ready-title">Your file is ready.</h2>
-                  <p className="completion-copy">{readyDownload.outputName || "Your converted media"}{readyDownload.outputBytes ? ` · ${bytes(readyDownload.outputBytes)}` : ""}. This private download link expires in {expiryLabel(readyDownload.expiresAt)}.</p>
+                  <p className="completion-copy">{readyDownload.outputName || "Your converted media"}{readyDownload.outputBytes ? ` · ${bytes(readyDownload.outputBytes)}` : ""}. Your browser should begin downloading it now. If it does not, use the button below. This private link expires in {expiryLabel(readyDownload.expiresAt)}.</p>
                   <button className="completion-download" onClick={() => download(readyDownload.id)} disabled={createDownloadLink.isPending}>{createDownloadLink.isPending ? <Loader2 className="spin" size={17} /> : <Download size={17} />} Download file</button>
                   <p className="completion-note">If the download does not open automatically, allow downloads for this site and use the button again.</p>
                 </motion.section>

@@ -7,12 +7,13 @@ import type { MediaJob } from "../drizzle/schema";
 import * as db from "./db";
 
 vi.mock("./db", () => ({
+  createMediaJob: vi.fn(),
   getMediaJob: vi.fn(),
   updateMediaJob: vi.fn(),
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -121,6 +122,61 @@ describe("job lifecycle", () => {
     expect(canTransitionJob("ready", "expired")).toBe(true);
     expect(canTransitionJob("downloaded", "ready")).toBe(false);
     expect(canTransitionJob("ready", "downloading")).toBe(false);
+  });
+
+  it("keeps a standard watch-link conversion output ready until signed delivery", async () => {
+    const previousWorkDir = process.env.MEDIA_WORK_DIR;
+    const previousYtDlpPath = process.env.YTDLP_PATH;
+    const workDir = path.join("/tmp", `nms-watch-lifecycle-${Date.now()}`);
+    const fixturePath = path.join(workDir, "yt-dlp-fixture.sh");
+    const jobs = new Map<string, MediaJob>();
+
+    try {
+      await mkdir(workDir, { recursive: true });
+      await writeFile(fixturePath, "#!/bin/sh\nprintf 'download: 100.0%\\n'\nprintf 'watch link output' > output.mp4\n");
+      await chmod(fixturePath, 0o755);
+      process.env.MEDIA_WORK_DIR = workDir;
+      process.env.YTDLP_PATH = fixturePath;
+      vi.mocked(db.createMediaJob).mockImplementation(async job => {
+        jobs.set(job.id, { ...job, createdAt: new Date(), updatedAt: new Date() } as MediaJob);
+      });
+      vi.mocked(db.getMediaJob).mockImplementation(async id => jobs.get(id));
+      vi.mocked(db.updateMediaJob).mockImplementation(async (id, update) => {
+        const next = { ...jobs.get(id), ...update, updatedAt: new Date() } as MediaJob;
+        jobs.set(id, next);
+        return next;
+      });
+
+      const id = await startMediaJob({
+        ownerSessionId: "watch-link-session",
+        sourceUrl: "https://www.youtube.com/watch?v=ECZigYVaa8I&list=RDECZigYVaa8I&start_radio=1",
+        sourceId: "ECZigYVaa8I",
+        title: "Standard watch link",
+        thumbnailUrl: null,
+        durationSeconds: 10,
+        mediaKind: "video",
+        requestedQuality: "best",
+        outputFormat: "mp4",
+      });
+      for (let attempt = 0; attempt < 50 && jobs.get(id)?.status !== "ready"; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      const ready = jobs.get(id);
+      expect(ready?.status).toBe("ready");
+      expect(ready?.sourceUrl).toBe("https://www.youtube.com/watch?v=ECZigYVaa8I");
+      expect(ready?.outputPath && existsSync(ready.outputPath)).toBe(true);
+      expect(existsSync(path.join(workDir, id, ".ready"))).toBe(true);
+    } finally {
+      vi.mocked(db.createMediaJob).mockReset();
+      vi.mocked(db.getMediaJob).mockReset();
+      vi.mocked(db.updateMediaJob).mockReset();
+      await rm(workDir, { recursive: true, force: true });
+      if (previousWorkDir === undefined) delete process.env.MEDIA_WORK_DIR;
+      else process.env.MEDIA_WORK_DIR = previousWorkDir;
+      if (previousYtDlpPath === undefined) delete process.env.YTDLP_PATH;
+      else process.env.YTDLP_PATH = previousYtDlpPath;
+    }
   });
 });
 

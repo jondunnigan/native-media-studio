@@ -82,3 +82,15 @@
 - [x] Normalize standard YouTube watch URLs by retaining only the intended video identifier.
 - [x] Strip playlist, radio, timestamp, and tracking parameters before yt-dlp inspection and conversion.
 - [x] Add regression coverage for Shorts, watch, and shortened YouTube links.
+- [x] Diagnose why standard watch-link job output is deleted before a browser download begins.
+- [x] Keep completed standard watch-link output available until its signed download is consumed or expires.
+- [x] Validate complete watch-link conversion delivery without premature media-jobs cleanup.
+- [x] Trigger a signed browser download automatically when a completed job reaches ready state, with a manual fallback.
+- [x] Retain failed conversion artifacts temporarily with a diagnostic marker instead of deleting them immediately.
+- [x] Add regression coverage that both cleanup services honor ready and failed retention markers.
+- [x] Reproduce a standard watch-link job lifecycle with a real ready output and verify retention until signed delivery.
+- [x] Validate the client-ready state issues a signed browser download without prematurely consuming or deleting output.
+- [x] Run a controlled standard watch-link conversion through ready state and verify output retention before signed delivery.
+- [x] Add an integration test for the Home ready-state effect that requests one signed URL and triggers a browser download.
+- [x] Mount the Home page in a browser-like test and verify one automatic signed download per ready job with a manual fallback.
+- [x] Verify the Home completion dialog’s manual Download file fallback after an automatic delivery attempt is blocked.

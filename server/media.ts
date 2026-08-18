@@ -9,6 +9,7 @@ import * as db from "./db";
 import type { MediaJob } from "../drizzle/schema";
 
 const DOWNLOAD_TTL_MS = 15 * 60 * 1000;
+const FAILED_JOB_RETENTION_MS = 60 * 60 * 1000;
 const METADATA_TIMEOUT_MS = 30 * 1000;
 const CONVERSION_TIMEOUT_MS = 25 * 60 * 1000;
 const MAX_ACTIVE_JOBS = 1;
@@ -421,7 +422,10 @@ export async function runMediaJob(jobId: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Media conversion failed.";
     await patchJob(jobId, { status: "failed", stage: "Conversion failed", failureMessage: message.slice(0, 512) });
-    await rm(jobDir, { recursive: true, force: true });
+    // Preserve failed artifacts briefly so a self-hosted administrator can inspect the actual conversion failure.
+    await mkdir(jobDir, { recursive: true });
+    await writeFile(path.join(jobDir, ".failed"), String(Date.now() + FAILED_JOB_RETENTION_MS));
+    await writeFile(path.join(jobDir, ".failure.txt"), message.slice(0, 4096));
   } finally {
     activeJobs.delete(jobId);
   }

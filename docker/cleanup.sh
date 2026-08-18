@@ -5,7 +5,7 @@ set -eu
 # recording the same expiry in the database. This never deletes a file early.
 while true; do
   now_ms="$(($(date +%s) * 1000))"
-  find /media-jobs -mindepth 2 -maxdepth 2 -type f -name .ready -print 2>/dev/null | while IFS= read -r marker; do
+  find /media-jobs -mindepth 2 -maxdepth 2 -type f \( -name .ready -o -name .failed \) -print 2>/dev/null | while IFS= read -r marker; do
     expiry_ms="$(cat "$marker" 2>/dev/null || true)"
     case "$expiry_ms" in
       *[!0-9]*|'') continue ;;

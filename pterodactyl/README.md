@@ -6,14 +6,16 @@ This directory makes Native Media Studio compatible with **Pterodactyl**. The Pt
 
 ## 1. Build and publish the image
 
-From the repository root on a machine with Docker and registry credentials, replace `YOUR_REGISTRY/YOUR_NAMESPACE` with a registry location accessible to the Pterodactyl node.
+The included GitHub Actions workflow automatically builds and publishes `ghcr.io/jondunnigan/native-media-studio:latest` whenever a relevant change reaches `main`. The first publish will happen after the workflow is present on GitHub; you can also trigger it from **Actions → Publish Pterodactyl Image → Run workflow**.
+
+If you need to publish manually from a machine with Docker and registry credentials, run the following from the repository root:
 
 ```bash
-docker build -f pterodactyl/Dockerfile -t YOUR_REGISTRY/YOUR_NAMESPACE/native-media-studio:latest .
-docker push YOUR_REGISTRY/YOUR_NAMESPACE/native-media-studio:latest
+docker build -f pterodactyl/Dockerfile -t ghcr.io/jondunnigan/native-media-studio:latest .
+docker push ghcr.io/jondunnigan/native-media-studio:latest
 ```
 
-GitHub Container Registry is a common option. If the image is private, configure image-pull credentials on the Pterodactyl node before deploying the egg.
+The GitHub package is private by default. After the initial workflow completes, open the package settings at `https://github.com/users/jondunnigan/packages/container/package/native-media-studio` and change its visibility to **Public**, or configure registry pull credentials on the Pterodactyl node.
 
 ## 2. Provide a MySQL-compatible database
 
@@ -27,7 +29,7 @@ Use TLS parameters where your database provider requires them. Do not place the 
 
 ## 3. Import and configure the egg
 
-In the Pterodactyl admin panel, create or select a Nest, choose **Import Egg**, and upload `pterodactyl/egg-native-media-studio.json`. After import, edit the **Native Media Studio (Pterodactyl)** Docker image entry, replacing `ghcr.io/replace-with-your-owner/native-media-studio:latest` with the image you published.
+In the Pterodactyl admin panel, create or select a Nest, choose **Import Egg**, and upload `pterodactyl/egg-native-media-studio.json`. The egg already uses `ghcr.io/jondunnigan/native-media-studio:latest`; no image substitution is needed once the workflow has completed successfully.
 
 Create a new server from that egg. Allocate one TCP port. Pterodactyl supplies it as `SERVER_PORT`; the bundled entrypoint gives that assigned value precedence over any inherited `PORT` default, which the Express server then uses automatically. Set `DATABASE_URL` to the external database connection string and set `JWT_SECRET` to a private random value of at least 32 characters. Keep `MEDIA_WORK_DIR` at `/home/container/data/media-jobs`.
 

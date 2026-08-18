@@ -12,7 +12,7 @@ describe("Pterodactyl egg", () => {
     expect(egg.meta.version).toBe("PTDL_v2");
     expect(egg.startup).toBe("bash /opt/native-media-studio/pterodactyl/entrypoint.sh");
     expect(egg.docker_images).toEqual({
-      "Native Media Studio (Pterodactyl)": "ghcr.io/replace-with-your-owner/native-media-studio:latest",
+      "Native Media Studio (Pterodactyl)": "ghcr.io/jondunnigan/native-media-studio:latest",
     });
   });
 

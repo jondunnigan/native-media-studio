@@ -8,7 +8,7 @@ The repository includes `scripts/pterodactyl-egg.test.mjs`, which checks the exa
 
 1. Download the newly corrected `pterodactyl/egg-native-media-studio.json` from this repository version, not an earlier copy.
 2. In Pterodactyl **Admin Area → Nests → Import Egg**, select that JSON file and complete the import.
-3. After the egg appears, edit its Docker image value from `ghcr.io/replace-with-your-owner/native-media-studio:latest` to your published image tag.
+3. After the egg appears, retain the published image value `ghcr.io/jondunnigan/native-media-studio:latest`.
 4. Create the server and set `DATABASE_URL` and `JWT_SECRET` in the server variables.
 
 If a 500 error still occurs after importing this corrected file, inspect the Panel log immediately after the failed upload. A Panel-side issue such as a database write failure, PHP upload limit, or an incompatible/modified Panel installation can still produce a generic 500 response independently of the egg JSON.

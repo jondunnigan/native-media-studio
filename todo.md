@@ -42,3 +42,6 @@
 - [x] Validate the corrected egg against a real Pterodactyl egg export structure.
 - [x] Correct the Pterodactyl docker_images display-name-to-image mapping required by egg imports.
 - [x] Add a source-verified compatibility test matching Pterodactyl Panel’s PTDL v2 egg parser requirements.
+- [x] Add a GitHub Actions workflow that publishes the Pterodactyl image to GHCR on main-branch pushes.
+- [x] Update the Pterodactyl egg and documentation to use the repository’s GHCR image path.
+- [ ] Validate the workflow configuration and verify that the image can be published from the connected repository.

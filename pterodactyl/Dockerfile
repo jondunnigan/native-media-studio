@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
     python3-pip \
-    && python3 -m pip install --no-cache-dir --break-system-packages yt-dlp \
+    && python3 -m pip install --no-cache-dir --break-system-packages yt-dlp yt-dlp-ejs \
     && useradd --create-home --home-dir /home/container --shell /bin/bash container \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,6 +22,7 @@ RUN npm install -g corepack@latest \
 ENV NODE_ENV=production \
     HOME=/home/container \
     USER=container \
+    YTDLP_JS_RUNTIME=node \
     MEDIA_WORK_DIR=/home/container/data/media-jobs
 
 USER container

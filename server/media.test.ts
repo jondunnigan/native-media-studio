@@ -13,7 +13,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -93,6 +93,12 @@ Second line","formats":[]}`;
 });
 
 describe("media tool prerequisites", () => {
+  it("enables Node.js for yt-dlp JavaScript challenges by default while allowing an explicit disable override", () => {
+    expect(ytDlpJavaScriptRuntimeArgs()).toEqual(["--js-runtimes", "node"]);
+    expect(ytDlpJavaScriptRuntimeArgs("node:/usr/local/bin/node")).toEqual(["--js-runtimes", "node:/usr/local/bin/node"]);
+    expect(ytDlpJavaScriptRuntimeArgs("off")).toEqual([]);
+  });
+
   it("converts an absent executable error into a clear setup instruction", () => {
     expect(describeMediaCommandError("yt-dlp", { code: "ENOENT" })).toContain("sudo pip3 install --upgrade yt-dlp");
   });
@@ -101,6 +107,12 @@ describe("media tool prerequisites", () => {
     const message = describeMediaCommandFailure("yt-dlp", "ERROR: [youtube] abc: Sign in to confirm you’re not a bot. Use --cookies-from-browser");
     expect(message).toContain("does not use account credentials");
     expect(message).not.toContain("--cookies-from-browser");
+  });
+
+  it("explains stream-level 403 failures without suggesting verification bypasses", () => {
+    const message = describeMediaCommandFailure("yt-dlp", "ERROR: unable to download video data: HTTP Error 403: Forbidden");
+    expect(message).toContain("media-stream request");
+    expect(message).not.toContain("cookies");
   });
 });
 

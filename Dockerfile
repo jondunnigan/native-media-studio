@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
     ca-certificates \
-    && python3 -m pip install --no-cache-dir --break-system-packages yt-dlp \
+    && python3 -m pip install --no-cache-dir --break-system-packages yt-dlp yt-dlp-ejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -15,6 +15,7 @@ RUN npm install -g corepack@latest \
     && corepack pnpm run build
 
 ENV NODE_ENV=production
+ENV YTDLP_JS_RUNTIME=node
 ENV PORT=3000
 ENV MEDIA_WORK_DIR=/app/data/media-jobs
 EXPOSE 3000

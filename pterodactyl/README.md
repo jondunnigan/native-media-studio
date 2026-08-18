@@ -61,6 +61,8 @@ The entrypoint starts a small independent cleanup shell process. It removes read
 
 ## 5. Operational requirements
 
+The image includes Node.js 22 and `yt-dlp-ejs`. Native Media Studio configures yt-dlp with `--js-runtimes node` so it can use the supported Node JavaScript runtime for YouTube extraction. Set `YTDLP_JS_RUNTIME` only when a different explicit runtime path is needed; set it to `off` for temporary runtime troubleshooting.
+
 | Setting | Recommended value |
 | --- | --- |
 | Primary allocation | One TCP port; Pterodactyl maps it to `SERVER_PORT`. |

@@ -94,3 +94,6 @@
 - [x] Add an integration test for the Home ready-state effect that requests one signed URL and triggers a browser download.
 - [x] Mount the Home page in a browser-like test and verify one automatic signed download per ready job with a manual fallback.
 - [x] Verify the Home completion dialog’s manual Download file fallback after an automatic delivery attempt is blocked.
+- [x] Configure yt-dlp to use the container’s Node.js JavaScript runtime for YouTube extraction.
+- [x] Detect and clearly report YouTube stream-level 403 failures without bypassing platform controls.
+- [x] Add regression coverage for Node-runtime yt-dlp arguments and stream-403 error messaging.

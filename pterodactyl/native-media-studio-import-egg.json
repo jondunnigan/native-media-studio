@@ -1,0 +1,72 @@
+{
+  "_comment": "DO NOT EDIT: Native Media Studio Pterodactyl import file.",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-08-18T20:55:00+00:00",
+  "name": "Native Media Studio",
+  "author": "jondunnigan",
+  "description": "Self-hosted authorized media conversion workspace using yt-dlp and ffmpeg. Requires an external MySQL-compatible database.",
+  "features": null,
+  "docker_images": {
+    "Native Media Studio (Pterodactyl)": "ghcr.io/jondunnigan/native-media-studio:latest"
+  },
+  "file_denylist": [],
+  "startup": "bash /opt/native-media-studio/pterodactyl/entrypoint.sh",
+  "config": {
+    "files": "{}",
+    "startup": "{}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\necho 'Native Media Studio is bundled in the selected image.'\nexit 0",
+      "container": "debian:bookworm-slim",
+      "entrypoint": "bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Database URL",
+      "description": "Required MySQL-compatible connection string. The database must be reachable from the Pterodactyl node.",
+      "env_variable": "DATABASE_URL",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": "required|string|max:2048",
+      "field_type": "text"
+    },
+    {
+      "name": "Session Signing Secret",
+      "description": "Required random secret used to sign self-hosted application sessions. Generate at least 32 random bytes and keep it private.",
+      "env_variable": "JWT_SECRET",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": "required|string|min:32|max:512",
+      "field_type": "text"
+    },
+    {
+      "name": "Media Work Directory",
+      "description": "Persistent directory for temporary authorized-media files. Keep the default on Pterodactyl.",
+      "env_variable": "MEDIA_WORK_DIR",
+      "default_value": "/home/container/data/media-jobs",
+      "user_viewable": true,
+      "user_editable": false,
+      "rules": "required|string|max:512",
+      "field_type": "text"
+    },
+    {
+      "name": "Migration Retry Attempts",
+      "description": "Number of startup attempts while waiting for the database.",
+      "env_variable": "MIGRATION_RETRY_ATTEMPTS",
+      "default_value": "10",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|integer|between:1,60",
+      "field_type": "text"
+    }
+  ]
+}

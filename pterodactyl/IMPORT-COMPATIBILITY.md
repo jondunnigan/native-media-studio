@@ -6,7 +6,7 @@ The repository includes `scripts/pterodactyl-egg.test.mjs`, which checks the exa
 
 ## Corrected import steps
 
-1. Download the newly corrected `pterodactyl/egg-native-media-studio.json` from this repository version, not an earlier copy.
+1. Download the standalone `pterodactyl/native-media-studio-import-egg.json` file from this repository version, not an earlier copy and not a copied page of repository HTML.
 2. In Pterodactyl **Admin Area → Nests → Import Egg**, select that JSON file and complete the import.
 3. After the egg appears, retain the published image value `ghcr.io/jondunnigan/native-media-studio:latest`.
 4. Create the server and set `DATABASE_URL` and `JWT_SECRET` in the server variables.

@@ -54,3 +54,7 @@
 - [x] Validate the Pterodactyl port binding configuration.
 - [x] Run the Pterodactyl startup path with OAuth unset and confirm the former configuration error is absent.
 - [x] Prove the production server accepts connections on the panel-style assigned port and all container interfaces.
+- [x] Diagnose the Pterodactyl egg JSON control-character import error.
+- [x] Generate and validate a strict canonical JSON egg artifact for direct import.
+- [x] Deliver the replacement egg file with exact import instructions.
+- [x] Save and deliver the exact standalone replacement egg artifact for import.

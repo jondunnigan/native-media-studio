@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const egg = JSON.parse(readFileSync(path.join(projectRoot, "pterodactyl", "egg-native-media-studio.json"), "utf8"));
+const importEggPath = path.join(projectRoot, "pterodactyl", "native-media-studio-import-egg.json");
+const importEggRaw = readFileSync(importEggPath, "utf8");
+const importEgg = JSON.parse(importEggRaw);
 const variables = new Map(egg.variables.map(variable => [variable.env_variable, variable]));
 
 describe("Pterodactyl egg", () => {
@@ -66,5 +69,16 @@ describe("Pterodactyl egg", () => {
         field_type: expect.any(String),
       });
     }
+  });
+
+  it("ships a strict standalone replacement import artifact", () => {
+    expect(importEgg.meta.version).toBe("PTDL_v2");
+    expect(importEgg.docker_images["Native Media Studio (Pterodactyl)"]).toBe("ghcr.io/jondunnigan/native-media-studio:latest");
+    expect(importEgg.variables).toHaveLength(4);
+    const controlCharacters = [...importEggRaw].filter(character => {
+      const code = character.charCodeAt(0);
+      return code < 32 && character !== "\n" && character !== "\r" && character !== "\t";
+    });
+    expect(controlCharacters).toEqual([]);
   });
 });

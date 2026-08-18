@@ -45,3 +45,12 @@
 - [x] Add a GitHub Actions workflow that publishes the Pterodactyl image to GHCR on main-branch pushes.
 - [x] Update the Pterodactyl egg and documentation to use the repository’s GHCR image path.
 - [x] Validate the workflow configuration and verify that the image can be published from the connected repository.
+- [x] Make Manus OAuth initialization optional for Pterodactyl self-hosting.
+- [x] Remove Manus-specific self-hosted startup errors while retaining anonymous conversion access.
+- [x] Validate the Pterodactyl entrypoint without OAuth environment variables.
+- [x] Add tests for OAuth-enabled and OAuth-disabled runtime mode selection.
+- [x] Bind the Pterodactyl server explicitly to the assigned container network interface.
+- [x] Document the allocation URL and distinguish it from the administrator’s local localhost address.
+- [x] Validate the Pterodactyl port binding configuration.
+- [x] Run the Pterodactyl startup path with OAuth unset and confirm the former configuration error is absent.
+- [x] Prove the production server accepts connections on the panel-style assigned port and all container interfaces.

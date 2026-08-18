@@ -1,34 +1,17 @@
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
-import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { createReadStream } from "fs";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { ENV } from "./env";
+import { CONTAINER_BIND_HOST, getAssignedPort } from "./networkBinding";
+import { isOAuthEnabled } from "./runtimeMode";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { claimDownload, cleanExpiredMediaJobs, getAnonymousSessionId, getOwnedMediaJob, markDownloadedAndRemove, onJobEvent } from "../media";
-
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
-    const server = net.createServer();
-    server.listen(port, () => {
-      server.close(() => resolve(true));
-    });
-    server.on("error", () => resolve(false));
-  });
-}
-
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
-  for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
-      return port;
-    }
-  }
-  throw new Error(`No available port found starting from ${startPort}`);
-}
 
 async function startServer() {
   const app = express();
@@ -37,7 +20,11 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
+  if (isOAuthEnabled(ENV.oAuthServerUrl)) {
+    registerOAuthRoutes(app);
+  } else {
+    console.log("[OAuth] Disabled: self-hosted anonymous mode is active.");
+  }
   app.get("/api/media/download/:id", async (req, res) => {
     const token = typeof req.query.token === "string" ? req.query.token : "";
     const job = await claimDownload(req.params.id, token);
@@ -76,15 +63,10 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const port = getAssignedPort(process.env.PORT);
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+  server.listen(port, CONTAINER_BIND_HOST, () => {
+    console.log(`Server listening on ${CONTAINER_BIND_HOST}:${port} (Pterodactyl allocation port)`);
   });
   void cleanExpiredMediaJobs().catch(error => console.error("[Media cleanup]", error));
 }

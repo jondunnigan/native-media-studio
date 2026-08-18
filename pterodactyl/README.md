@@ -39,6 +39,18 @@ The prescribed startup command is already included in the egg:
 bash /opt/native-media-studio/pterodactyl/entrypoint.sh
 ```
 
+## Opening the application
+
+The application binds to `0.0.0.0` inside the container on the TCP allocation assigned by Pterodactyl. The `localhost` message in the console refers to the **server container**, not the computer running your browser.
+
+Open the external allocation displayed on the Pterodactyl server’s **Network** page:
+
+```text
+http://PTERODACTYL_NODE_PUBLIC_IP:ASSIGNED_PORT
+```
+
+For example, if the allocation is `203.0.113.10:25504`, browse to `http://203.0.113.10:25504`. Use `http://localhost:25504` only when the browser runs directly on the same Pterodactyl node and the node maps that port locally. If the external address still refuses connections, verify that the allocation is assigned to the server and that the node/provider firewall allows the allocated TCP port.
+
 ## 4. Startup, migration reconciliation, and cleanup
 
 At each start, `scripts/start-production.mjs` connects to the database, applies normal Drizzle migrations, and starts the server. It also safely reconciles the specific historical case where the `users` and/or `media_jobs` tables already exist but the Drizzle migration ledger is empty. It first verifies required columns and only then records the matching migration hashes. If the existing schema is incompatible, startup stops rather than modifying unknown data.
@@ -59,3 +71,5 @@ The entrypoint starts a small independent cleanup shell process. It removes read
 | Image updates | Build and push a new tag, change the egg/server image, then reinstall or restart. |
 
 The image includes Node.js, `yt-dlp`, and `ffmpeg`. Upstream source availability remains dependent on the network of the Pterodactyl node and the source platform’s rules. This project does not include account-cookie handling, verification bypasses, or DRM circumvention; use it only for material you own or have permission to download.
+
+Manus OAuth is intentionally optional for this self-hosted deployment. Do **not** set `OAUTH_SERVER_URL`, `VITE_APP_ID`, or Manus Forge credentials in Pterodactyl. Without an OAuth server URL, the application starts in anonymous conversion mode, disables OAuth callback routes, and does not attempt Manus authentication for public requests.

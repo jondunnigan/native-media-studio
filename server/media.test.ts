@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { existsSync } from "fs";
-import { chmod, mkdir, rm, writeFile } from "fs/promises";
+import { chmod, mkdir, readFile, rm, writeFile } from "fs/promises";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaJob } from "../drizzle/schema";
@@ -13,7 +13,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs, ytDlpPublicClientArgs } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, formatFailureDiagnostic, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs, ytDlpPublicClientArgs } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -119,6 +119,13 @@ describe("media tool prerequisites", () => {
     expect(message).toContain("media-stream request");
     expect(message).not.toContain("cookies");
   });
+
+  it("keeps bounded yt-dlp context in the failed-job diagnostic while preserving the safe user message", () => {
+    const diagnostic = formatFailureDiagnostic("YouTube denied a media-stream request.", "ERROR: unable to download video data: HTTP Error 403: Forbidden");
+    expect(diagnostic).toContain("YouTube denied a media-stream request.");
+    expect(diagnostic).toContain("yt-dlp diagnostic");
+    expect(diagnostic).toContain("HTTP Error 403: Forbidden");
+  });
 });
 
 describe("download expiry", () => {
@@ -184,6 +191,62 @@ describe("job lifecycle", () => {
       expect(ready?.sourceUrl).toBe("https://www.youtube.com/watch?v=ECZigYVaa8I");
       expect(ready?.outputPath && existsSync(ready.outputPath)).toBe(true);
       expect(existsSync(path.join(workDir, id, ".ready"))).toBe(true);
+    } finally {
+      vi.mocked(db.createMediaJob).mockReset();
+      vi.mocked(db.getMediaJob).mockReset();
+      vi.mocked(db.updateMediaJob).mockReset();
+      await rm(workDir, { recursive: true, force: true });
+      if (previousWorkDir === undefined) delete process.env.MEDIA_WORK_DIR;
+      else process.env.MEDIA_WORK_DIR = previousWorkDir;
+      if (previousYtDlpPath === undefined) delete process.env.YTDLP_PATH;
+      else process.env.YTDLP_PATH = previousYtDlpPath;
+    }
+  });
+
+  it("writes safe and raw context to the retained failure artifact for a stream-level 403", async () => {
+    const previousWorkDir = process.env.MEDIA_WORK_DIR;
+    const previousYtDlpPath = process.env.YTDLP_PATH;
+    const workDir = path.join("/tmp", `nms-stream-403-${Date.now()}`);
+    const fixturePath = path.join(workDir, "yt-dlp-403.sh");
+    const jobs = new Map<string, MediaJob>();
+
+    try {
+      await mkdir(workDir, { recursive: true });
+      await writeFile(fixturePath, "#!/bin/sh\nprintf '%s\\n' 'ERROR: unable to download video data: HTTP Error 403: Forbidden' >&2\nexit 1\n");
+      await chmod(fixturePath, 0o755);
+      process.env.MEDIA_WORK_DIR = workDir;
+      process.env.YTDLP_PATH = fixturePath;
+      vi.mocked(db.createMediaJob).mockImplementation(async job => {
+        jobs.set(job.id, { ...job, createdAt: new Date(), updatedAt: new Date() } as MediaJob);
+      });
+      vi.mocked(db.getMediaJob).mockImplementation(async id => jobs.get(id));
+      vi.mocked(db.updateMediaJob).mockImplementation(async (id, update) => {
+        const next = { ...jobs.get(id), ...update, updatedAt: new Date() } as MediaJob;
+        jobs.set(id, next);
+        return next;
+      });
+
+      const id = await startMediaJob({
+        ownerSessionId: "stream-403-session",
+        sourceUrl: "https://www.youtube.com/watch?v=PXpw9esQnnQ",
+        sourceId: "PXpw9esQnnQ",
+        title: "Stream 403 fixture",
+        thumbnailUrl: null,
+        durationSeconds: 10,
+        mediaKind: "video",
+        requestedQuality: "best",
+        outputFormat: "mp4",
+      });
+      for (let attempt = 0; attempt < 50 && jobs.get(id)?.status !== "failed"; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      expect(jobs.get(id)?.status).toBe("failed");
+      const failureArtifact = await readFile(path.join(workDir, id, ".failure.txt"), "utf8");
+      expect(failureArtifact).toContain("YouTube denied a media-stream request");
+      expect(failureArtifact).toContain("yt-dlp diagnostic");
+      expect(failureArtifact).toContain("HTTP Error 403: Forbidden");
+      expect(existsSync(path.join(workDir, id, ".failed"))).toBe(true);
     } finally {
       vi.mocked(db.createMediaJob).mockReset();
       vi.mocked(db.getMediaJob).mockReset();

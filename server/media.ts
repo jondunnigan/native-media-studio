@@ -16,6 +16,13 @@ const MAX_ACTIVE_JOBS = 1;
 const jobEvents = new EventEmitter();
 const activeJobs = new Set<string>();
 
+class MediaCommandFailure extends Error {
+  constructor(message: string, readonly diagnosticOutput: string) {
+    super(message);
+    this.name = "MediaCommandFailure";
+  }
+}
+
 export type MediaKind = "video" | "audio";
 export type JobUpdate = Pick<MediaJob, "id" | "status" | "progress" | "stage" | "failureMessage" | "expiresAt" | "outputName" | "outputBytes">;
 
@@ -156,19 +163,29 @@ export function parseProgressPercent(text: string): number | null {
 
 export function describeMediaCommandError(command: string, error: unknown): string {
   if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
-    return `The required ${command} executable is not installed or is not on PATH. Install ${command}${command === "yt-dlp" ? " with ‘sudo pip3 install --upgrade yt-dlp’" : " and try again"}, then restart the server.`;
+    return `The required ${command} executable is not installed or is not on PATH. Install ${command}${isYtDlpCommand(command) ? " with ‘sudo pip3 install --upgrade yt-dlp’" : " and try again"}, then restart the server.`;
   }
   return error instanceof Error ? error.message : "The media command could not be started.";
 }
 
+function isYtDlpCommand(command: string): boolean {
+  return path.basename(command).startsWith("yt-dlp");
+}
+
 export function describeMediaCommandFailure(command: string, output: string): string {
-  if (command === "yt-dlp" && /sign in to confirm you.?re not a bot|confirm you.?re not a bot/i.test(output)) {
+  if (isYtDlpCommand(command) && /sign in to confirm you.?re not a bot|confirm you.?re not a bot/i.test(output)) {
     return "YouTube rejected this server before it exposed usable media metadata or streams. Native Media Studio already uses yt-dlp’s supported public clients and JavaScript runtime, but it does not store account credentials, generate externally enforced access tokens, or bypass verification controls. Try again later from a network where the source is publicly available, or use another source you are authorized to download.";
   }
-  if (command === "yt-dlp" && /unable to download video data: HTTP Error 403|HTTP Error 403: Forbidden/i.test(output)) {
+  if (isYtDlpCommand(command) && /unable to download video data: HTTP Error 403|HTTP Error 403: Forbidden/i.test(output)) {
     return "YouTube denied a media-stream request for this source. Native Media Studio enabled its supported JavaScript runtime and retried the stream, but it does not bypass platform access controls. Wait and retry later, update the self-hosted image, or use another source you are authorized to download.";
   }
   return output || `${command} ended without a successful result.`;
+}
+
+export function formatFailureDiagnostic(userMessage: string, diagnosticOutput?: string): string {
+  const diagnostic = diagnosticOutput?.trim();
+  if (!diagnostic) return userMessage;
+  return `${userMessage}\n\n--- yt-dlp diagnostic (last ${diagnostic.length} characters) ---\n${diagnostic}`;
 }
 
 export function normalizeJsonControlCharacters(rawJson: string): string {
@@ -274,7 +291,10 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
     child.on("close", code => {
       clearTimeout(timeout);
       if (code === 0) resolve(stdout);
-      else reject(new Error(describeMediaCommandFailure(command, diagnosticOutput || `${command} exited with code ${code ?? "unknown"}.`)));
+      else {
+        const details = diagnosticOutput || `${command} exited with code ${code ?? "unknown"}.`;
+        reject(new MediaCommandFailure(describeMediaCommandFailure(command, details), details));
+      }
     });
   });
 }
@@ -440,11 +460,12 @@ export async function runMediaJob(jobId: string) {
     await writeFile(path.join(jobDir, ".ready"), String(expiresAt.getTime()));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Media conversion failed.";
+    const diagnostic = error instanceof MediaCommandFailure ? error.diagnosticOutput : undefined;
     await patchJob(jobId, { status: "failed", stage: "Conversion failed", failureMessage: message.slice(0, 512) });
     // Preserve failed artifacts briefly so a self-hosted administrator can inspect the actual conversion failure.
     await mkdir(jobDir, { recursive: true });
     await writeFile(path.join(jobDir, ".failed"), String(Date.now() + FAILED_JOB_RETENTION_MS));
-    await writeFile(path.join(jobDir, ".failure.txt"), message.slice(0, 4096));
+    await writeFile(path.join(jobDir, ".failure.txt"), formatFailureDiagnostic(message, diagnostic).slice(0, 8192));
   } finally {
     activeJobs.delete(jobId);
   }

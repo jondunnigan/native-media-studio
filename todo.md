@@ -102,3 +102,7 @@
 - [x] Validate player-client argument construction and stream-selection diagnostics.
 - [x] Record and present the verified case where a supported unauthenticated client is rejected before metadata or stream delivery.
 - [x] Add a focused check that production yt-dlp arguments retain documented default public-client selection without a forced player_client override.
+- [x] Assess failed-job evidence to distinguish upstream stream denial from container or conversion configuration faults.
+- [x] Improve failure diagnostics to preserve the original yt-dlp context alongside the safe user-facing explanation.
+- [x] Validate diagnostic artifact content for stream-denial failures.
+- [x] Exercise a simulated stream-403 through the real conversion job path and verify the written failure artifact retains both safe and raw context.

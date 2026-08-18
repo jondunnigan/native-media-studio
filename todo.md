@@ -38,3 +38,7 @@
 - [x] Package the Native Media Studio Pterodactyl egg as a ready-to-import artifact.
 - [x] Validate the egg JSON and provide concise import instructions with image substitution guidance.
 - [x] Harden the egg’s Pterodactyl variables for database credentials and self-hosted session signing.
+- [x] Diagnose and correct the Pterodactyl egg import 500 schema incompatibility.
+- [x] Validate the corrected egg against a real Pterodactyl egg export structure.
+- [x] Correct the Pterodactyl docker_images display-name-to-image mapping required by egg imports.
+- [x] Add a source-verified compatibility test matching Pterodactyl Panel’s PTDL v2 egg parser requirements.

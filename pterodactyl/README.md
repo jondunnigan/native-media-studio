@@ -27,7 +27,7 @@ Use TLS parameters where your database provider requires them. Do not place the 
 
 ## 3. Import and configure the egg
 
-In the Pterodactyl admin panel, create or select a Nest, choose **Import Egg**, and upload `pterodactyl/egg-native-media-studio.json`. Edit the egg’s Docker image field after import, replacing `ghcr.io/replace-with-your-owner/native-media-studio:latest` with the image you published.
+In the Pterodactyl admin panel, create or select a Nest, choose **Import Egg**, and upload `pterodactyl/egg-native-media-studio.json`. After import, edit the **Native Media Studio (Pterodactyl)** Docker image entry, replacing `ghcr.io/replace-with-your-owner/native-media-studio:latest` with the image you published.
 
 Create a new server from that egg. Allocate one TCP port. Pterodactyl supplies it as `SERVER_PORT`; the bundled entrypoint gives that assigned value precedence over any inherited `PORT` default, which the Express server then uses automatically. Set `DATABASE_URL` to the external database connection string and set `JWT_SECRET` to a private random value of at least 32 characters. Keep `MEDIA_WORK_DIR` at `/home/container/data/media-jobs`.
 

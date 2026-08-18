@@ -10,7 +10,7 @@
   "description": "Self-hosted, authorized-media conversion workspace using yt-dlp and ffmpeg. Requires an external MySQL-compatible database.",
   "features": null,
   "docker_images": {
-    "ghcr.io/replace-with-your-owner/native-media-studio:latest": "Native Media Studio (Pterodactyl)"
+    "Native Media Studio (Pterodactyl)": "ghcr.io/replace-with-your-owner/native-media-studio:latest"
   },
   "file_denylist": [],
   "startup": "bash /opt/native-media-studio/pterodactyl/entrypoint.sh",

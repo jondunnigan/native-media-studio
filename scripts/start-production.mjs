@@ -5,7 +5,8 @@ import path from "node:path";
 import mysql from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import { migrate } from "drizzle-orm/mysql2/migrator";
-import { determineReconciliationPlan } from "./reconciliation-policy.mjs";
+import { determineLegacyMediaJobsUpgrade, determineReconciliationPlan } from "./reconciliation-policy.mjs";
+import { upgradeLegacyMediaJobs } from "./legacy-media-jobs-upgrade.mjs";
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsFolder = path.join(appRoot, "drizzle");
@@ -34,6 +35,14 @@ async function tableColumns(connection, tableName) {
   return new Set(rows.map(row => row.column_name));
 }
 
+async function tableIndexes(connection, tableName) {
+  const [rows] = await connection.execute(
+    "SELECT DISTINCT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ?",
+    [tableName],
+  );
+  return new Set(rows.map(row => row.index_name));
+}
+
 async function ensureMigrationLedger(connection) {
   await connection.execute("CREATE TABLE IF NOT EXISTS `__drizzle_migrations` (`id` serial PRIMARY KEY, `hash` text NOT NULL, `created_at` bigint)");
 }
@@ -48,7 +57,16 @@ async function stampMigration(connection, migration) {
 
 async function reconcileExistingSchema(connection) {
   const usersColumns = await tableColumns(connection, "users");
-  const mediaColumns = await tableColumns(connection, "media_jobs");
+  let mediaColumns = await tableColumns(connection, "media_jobs");
+  if (usersColumns.size > 0 && mediaColumns.size > 0) {
+    await upgradeLegacyMediaJobs({
+      connection,
+      columns: mediaColumns,
+      getIndexes: () => tableIndexes(connection, "media_jobs"),
+      log: console.log,
+    });
+    mediaColumns = await tableColumns(connection, "media_jobs");
+  }
   const migrationTags = determineReconciliationPlan({ usersColumns, mediaJobsColumns: mediaColumns });
   if (migrationTags.length === 0) return;
   await ensureMigrationLedger(connection);

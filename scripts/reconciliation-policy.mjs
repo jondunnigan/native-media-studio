@@ -9,9 +9,38 @@ export const expectedColumns = Object.freeze({
   ]),
 });
 
+export const requiredLegacyMediaJobsColumns = Object.freeze([
+  "id", "ownerSessionId", "sourceUrl", "sourceId", "title", "mediaKind", "requestedQuality", "outputFormat",
+  "status", "progress", "stage", "createdAt", "updatedAt",
+]);
+
+export const additiveLegacyMediaJobsColumns = Object.freeze({
+  thumbnailUrl: "text",
+  durationSeconds: "int",
+  outputName: "varchar(255)",
+  outputPath: "varchar(512)",
+  outputMime: "varchar(128)",
+  outputBytes: "bigint",
+  downloadTokenHash: "varchar(64)",
+  expiresAt: "timestamp",
+  downloadedAt: "timestamp",
+  failureMessage: "varchar(512)",
+});
+
 export function missingExpectedColumns(tableName, columns) {
   const provided = columns instanceof Set ? columns : new Set(columns);
   return expectedColumns[tableName].filter(column => !provided.has(column));
+}
+
+export function determineLegacyMediaJobsUpgrade(columns) {
+  const provided = columns instanceof Set ? columns : new Set(columns);
+  const missingRequired = requiredLegacyMediaJobsColumns.filter(column => !provided.has(column));
+  if (missingRequired.length) {
+    throw new Error(`Existing table media_jobs is missing core columns: ${missingRequired.join(", ")}. Refusing an unsafe automatic upgrade.`);
+  }
+  return Object.entries(additiveLegacyMediaJobsColumns)
+    .filter(([column]) => !provided.has(column))
+    .map(([column, definition]) => ({ column, definition }));
 }
 
 export function determineReconciliationPlan({ usersColumns, mediaJobsColumns }) {

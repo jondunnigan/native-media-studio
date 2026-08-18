@@ -15,6 +15,13 @@
       "when": 1786932303705,
       "tag": "0001_young_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787087839154,
+      "tag": "0002_media_jobs_utf8mb4",
+      "breakpoints": true
     }
   ]
 }

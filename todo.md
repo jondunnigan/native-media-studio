@@ -63,3 +63,11 @@
 - [x] Add parser regression tests and validate the repaired inspection flow.
 - [x] Preserve yt-dlp stdout across chunk boundaries so metadata JSON is never rebuilt with injected line breaks.
 - [x] Exercise the inspection path with chunked malformed yt-dlp metadata and verify successful parsed output.
+- [x] Identify and reconcile the Pterodactyl media_jobs schema mismatch causing job inserts to fail.
+- [x] Add safe upgrade handling for historical media_jobs tables that lack current job columns.
+- [x] Validate a conversion-job insert against the reconciled schema.
+- [x] Ensure media_jobs uses utf8mb4 so inspected titles containing emoji can be inserted safely.
+- [x] Run the production startup migrator and verify it applies the utf8mb4 upgrade cleanly.
+- [x] Add a safe startup path for historical media_jobs tables missing current columns and indexes.
+- [x] Test partial media_jobs schema handling with a clear startup outcome before the app serves conversions.
+- [x] Exercise startup reconciliation against a real temporary partial media_jobs table before serving conversions.

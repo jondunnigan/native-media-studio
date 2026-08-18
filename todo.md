@@ -35,3 +35,6 @@
 - [x] Add automated migration-reconciler tests for fresh and pre-existing schema states.
 - [x] Exercise the Pterodactyl entrypoint with panel-style port and persistent-storage settings.
 - [x] Ensure the Pterodactyl-assigned SERVER_PORT always overrides any inherited default PORT value.
+- [x] Package the Native Media Studio Pterodactyl egg as a ready-to-import artifact.
+- [x] Validate the egg JSON and provide concise import instructions with image substitution guidance.
+- [x] Harden the egg’s Pterodactyl variables for database credentials and self-hosted session signing.

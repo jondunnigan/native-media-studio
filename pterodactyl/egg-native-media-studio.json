@@ -33,9 +33,19 @@
       "description": "Required MySQL-compatible connection string. The database must be reachable from the Pterodactyl node.",
       "env_variable": "DATABASE_URL",
       "default_value": "",
-      "user_viewable": true,
+      "user_viewable": false,
       "user_editable": true,
       "rules": "required|string|max:2048",
+      "field_type": "text"
+    },
+    {
+      "name": "Session Signing Secret",
+      "description": "Required random secret used to sign self-hosted application sessions. Generate at least 32 random bytes and keep it private.",
+      "env_variable": "JWT_SECRET",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": "required|string|min:32|max:512",
       "field_type": "text"
     },
     {

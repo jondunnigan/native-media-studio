@@ -114,3 +114,10 @@
 - [x] Add regression coverage for resume flags, fragmented delivery, height ceiling, and mid-transfer expiry classification.
 - [x] Verify the new yt-dlp resume, fragment, and selector arguments against the installed yt-dlp version.
 - [x] Document the delivery tuning and MEDIA_MAX_VIDEO_HEIGHT ceiling for self-hosted deployments.
+- [x] Diagnose the reported missing browser download after a job completes.
+- [x] Fix the ready-state delivery path so the completed file reaches the browser reliably.
+- [x] Add regression coverage for the specific delivery failure mode found.
+- [x] Derive client quality value types from the offered options so the UI cannot send a value the server rejects.
+- [x] Guarantee exactly one request per single-use signed URL, navigating only when the anchor download attribute is unsupported.
+- [x] Add coverage proving no timed retry or second navigation can consume an already-claimed download token.
+- [x] Confirm the new quality-passthrough test fails against the stale narrowing before restoring the fix.

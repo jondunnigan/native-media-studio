@@ -28,14 +28,19 @@ const videoQualities = [
   { value: "720p", label: "720p HD" },
   { value: "480p", label: "480p" },
   { value: "360p", label: "360p" },
-];
+] as const;
 
 const audioQualities = [
   { value: "best", label: "Best available" },
   { value: "320", label: "320 kbps" },
   { value: "192", label: "192 kbps" },
   { value: "128", label: "128 kbps" },
-];
+] as const;
+
+// Derived from the option lists so a newly offered quality cannot be sent as a value the
+// server does not accept.
+type VideoQualityValue = (typeof videoQualities)[number]["value"];
+type AudioQualityValue = (typeof audioQualities)[number]["value"];
 
 function bytes(value?: number | null) {
   if (!value) return "—";
@@ -152,7 +157,7 @@ export default function Home() {
         thumbnailUrl: source.thumbnail,
         durationSeconds: source.durationSeconds,
         mediaKind: mode,
-        requestedQuality: selectedQuality as "best" | "1080p" | "720p" | "480p" | "360p" | "320" | "192" | "128",
+        requestedQuality: selectedQuality as VideoQualityValue | AudioQualityValue,
         outputFormat: selectedFormat as "mp4" | "mkv" | "webm" | "mp3" | "aac" | "flac" | "wav" | "ogg",
         acknowledgedRights: true,
       });

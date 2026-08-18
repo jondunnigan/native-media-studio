@@ -74,4 +74,10 @@ The image includes Node.js 22 and `yt-dlp-ejs`. Native Media Studio configures y
 
 The image includes Node.js, `yt-dlp`, and `ffmpeg`. Upstream source availability remains dependent on the network of the Pterodactyl node and the source platform’s rules. This project does not include account-cookie handling, verification bypasses, or DRM circumvention; use it only for material you own or have permission to download.
 
+### Large-transfer reliability
+
+YouTube media URLs are time-bound. A `HTTP Error 403: Forbidden` that appears **after** partial transfer progress is an expiring stream URL rather than a block on the source, so conversions resume from the last good byte, tolerate an unavailable fragment, prefer fragmented (DASH) delivery, and retry with backoff. Long 2160p jobs are where this failure concentrates.
+
+Set the optional `MEDIA_MAX_VIDEO_HEIGHT` variable (for example `1440`) to cap selected video height so large transfers finish inside the stream’s validity window. The **Maximum available** quality option is explicit user intent and ignores this ceiling; leave the variable unset for no cap.
+
 Manus OAuth is intentionally optional for this self-hosted deployment. Do **not** set `OAUTH_SERVER_URL`, `VITE_APP_ID`, or Manus Forge credentials in Pterodactyl. Without an OAuth server URL, the application starts in anonymous conversion mode, disables OAuth callback routes, and does not attempt Manus authentication for public requests.

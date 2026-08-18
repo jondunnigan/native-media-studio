@@ -106,3 +106,11 @@
 - [x] Improve failure diagnostics to preserve the original yt-dlp context alongside the safe user-facing explanation.
 - [x] Validate diagnostic artifact content for stream-denial failures.
 - [x] Exercise a simulated stream-403 through the real conversion job path and verify the written failure artifact retains both safe and raw context.
+- [x] Distinguish mid-transfer stream expiry from pre-transfer access denial when classifying yt-dlp 403 failures.
+- [x] Add resume-aware yt-dlp download retries so partially transferred streams continue instead of restarting or failing.
+- [x] Prefer fragmented (DASH/HLS) delivery so per-fragment URL re-signing limits expiry impact.
+- [x] Add a configurable maximum video height ceiling with an explicit maximum-available option.
+- [x] Update the failure message so mid-transfer expiry is reported as a transfer condition rather than an access denial.
+- [x] Add regression coverage for resume flags, fragmented delivery, height ceiling, and mid-transfer expiry classification.
+- [x] Verify the new yt-dlp resume, fragment, and selector arguments against the installed yt-dlp version.
+- [x] Document the delivery tuning and MEDIA_MAX_VIDEO_HEIGHT ceiling for self-hosted deployments.

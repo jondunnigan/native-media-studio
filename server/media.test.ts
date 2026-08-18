@@ -13,7 +13,75 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, formatFailureDiagnostic, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs, ytDlpPublicClientArgs } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, formatFailureDiagnostic, inspectYouTubeMedia, isMidTransferStreamExpiry, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, resolveVideoHeightCeiling, startMediaJob, videoSelector, ytDlpJavaScriptRuntimeArgs, ytDlpPublicClientArgs, ytDlpResumeAndFragmentArgs } from "./media";
+
+describe("mid-transfer stream expiry classification", () => {
+  const partialTransfer403 = "[download] Destination: output.f313.webm\n  0.0%\n 10.1%\n 40.5%\n 71.0%\nERROR: unable to download video data: HTTP Error 403: Forbidden";
+  const preTransfer403 = "[youtube] Extracting URL: https://www.youtube.com/watch?v=abc123\nERROR: unable to download video data: HTTP Error 403: Forbidden";
+
+  it("treats a 403 after measurable transfer as a stream-URL expiry, not an access denial", () => {
+    expect(isMidTransferStreamExpiry(partialTransfer403)).toBe(true);
+    const message = describeMediaCommandFailure("yt-dlp", partialTransfer403);
+    expect(message).toContain("temporary URL expired");
+    expect(message).toContain("delivery-timing condition");
+    expect(message).not.toContain("YouTube denied a media-stream request");
+  });
+
+  it("still reports a 403 with no transferred bytes as an access denial", () => {
+    expect(isMidTransferStreamExpiry(preTransfer403)).toBe(false);
+    expect(describeMediaCommandFailure("yt-dlp", preTransfer403)).toContain("YouTube denied a media-stream request");
+  });
+
+  it("does not classify unrelated failures as stream expiry", () => {
+    expect(isMidTransferStreamExpiry("  42.0%\nERROR: ffmpeg exited with code 1")).toBe(false);
+  });
+});
+
+describe("resume-aware fragmented delivery", () => {
+  it("requests resume, fragment tolerance, and bounded chunking", () => {
+    const args = ytDlpResumeAndFragmentArgs();
+    expect(args).toContain("--continue");
+    expect(args).toContain("--no-abort-on-unavailable-fragments");
+    expect(args).toEqual(expect.arrayContaining(["--retries", "10"]));
+    expect(args).toEqual(expect.arrayContaining(["--fragment-retries", "20"]));
+    expect(args).toEqual(expect.arrayContaining(["--http-chunk-size", "10M"]));
+    expect(args).toEqual(expect.arrayContaining(["--retry-sleep", "fragment:exp=1:20"]));
+  });
+
+  it("prefers fragmented streams before progressive fallbacks in every selector", () => {
+    const uncapped = videoSelector("max", undefined);
+    const capped = videoSelector("1080p", undefined);
+    // DASH first, then HLS, then progressive: ordering is what preserves resumability.
+    expect(uncapped.indexOf("protocol*=dash")).toBeLessThan(uncapped.indexOf("protocol*=m3u8"));
+    expect(uncapped.indexOf("protocol*=m3u8")).toBeLessThan(uncapped.indexOf("/bestvideo*+bestaudio"));
+    expect(capped.indexOf("protocol*=dash")).toBeLessThan(capped.indexOf("protocol*=m3u8"));
+    expect(capped).toContain("bestvideo*[height<=1080]+bestaudio");
+  });
+});
+
+describe("video quality ceiling", () => {
+  it("applies the configured ceiling to balanced and explicit requests", () => {
+    expect(resolveVideoHeightCeiling("best", "1440")).toBe(1440);
+    expect(resolveVideoHeightCeiling("2160p", "1440")).toBe(1440);
+    expect(resolveVideoHeightCeiling("720p", "1440")).toBe(720);
+  });
+
+  it("lets the explicit maximum-available option ignore the ceiling", () => {
+    expect(resolveVideoHeightCeiling("max", "1080")).toBeNull();
+    expect(videoSelector("max", "1080")).not.toContain("height<=");
+  });
+
+  it("leaves selection uncapped when no ceiling is configured", () => {
+    expect(resolveVideoHeightCeiling("best", undefined)).toBeNull();
+    expect(resolveVideoHeightCeiling("best", "not-a-number")).toBeNull();
+  });
+
+  it("accepts the newly supported high-resolution choices and rejects unsupported ones", () => {
+    expect(videoSelector("2160p", undefined)).toContain("height<=2160");
+    expect(videoSelector("1440p", undefined)).toContain("height<=1440");
+    expect(() => videoSelector("999p", undefined)).toThrow("supported video quality");
+  });
+});
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {

@@ -20,7 +20,10 @@ type ProgressEvent = {
 type ReadyDownload = Pick<ProgressEvent, "id" | "outputName" | "outputBytes" | "expiresAt">;
 
 const videoQualities = [
-  { value: "best", label: "Best available" },
+  { value: "best", label: "Recommended (balanced)" },
+  { value: "max", label: "Maximum available" },
+  { value: "2160p", label: "2160p 4K" },
+  { value: "1440p", label: "1440p QHD" },
   { value: "1080p", label: "1080p Full HD" },
   { value: "720p", label: "720p HD" },
   { value: "480p", label: "480p" },

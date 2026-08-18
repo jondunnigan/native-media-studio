@@ -30,13 +30,13 @@ export const appRouter = router({
       thumbnailUrl: z.string().url().nullable(),
       durationSeconds: z.number().int().nonnegative().nullable(),
       mediaKind: z.enum(["video", "audio"]),
-      requestedQuality: z.enum(["best", "1080p", "720p", "480p", "360p", "320", "192", "128"]),
+      requestedQuality: z.enum(["max", "best", "2160p", "1440p", "1080p", "720p", "480p", "360p", "320", "192", "128"]),
       outputFormat: z.enum(["mp4", "mkv", "webm", "mp3", "aac", "flac", "wav", "ogg"]),
       acknowledgedRights: z.literal(true),
     }).superRefine((value, issue) => {
       const videoFormats = ["mp4", "mkv", "webm"];
       const audioFormats = ["mp3", "aac", "flac", "wav", "ogg"];
-      const videoQualities = ["best", "1080p", "720p", "480p", "360p"];
+      const videoQualities = ["max", "best", "2160p", "1440p", "1080p", "720p", "480p", "360p"];
       const audioQualities = ["best", "320", "192", "128"];
       if (value.mediaKind === "video" && (!videoFormats.includes(value.outputFormat) || !videoQualities.includes(value.requestedQuality))) issue.addIssue({ code: "custom", message: "Choose a valid video format and quality." });
       if (value.mediaKind === "audio" && (!audioFormats.includes(value.outputFormat) || !audioQualities.includes(value.requestedQuality))) issue.addIssue({ code: "custom", message: "Choose a valid audio format and quality." });

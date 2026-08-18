@@ -67,6 +67,16 @@
       "user_editable": true,
       "rules": "required|integer|between:1,60",
       "field_type": "text"
+    },
+    {
+      "name": "Maximum Video Height",
+      "description": "Optional cap on selected video height, for example 1440. Long 2160p transfers are most likely to outlive a temporary stream URL. Leave empty for no cap; the Maximum available quality option always ignores this ceiling.",
+      "env_variable": "MEDIA_MAX_VIDEO_HEIGHT",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|integer|between:144,4320",
+      "field_type": "text"
     }
   ]
 }

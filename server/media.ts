@@ -118,6 +118,46 @@ export function ytDlpPublicClientArgs(): string[] {
   return [];
 }
 
+// yt-dlp reports the transferred percentage while a stream is in flight. A 403 that
+// arrives after measurable transfer indicates an expired/rotated media URL rather than
+// a denial of access to the source itself.
+export function isMidTransferStreamExpiry(output: string): boolean {
+  if (!/HTTP Error 403/i.test(output)) return false;
+  const percentages = (output.match(/\d{1,3}(?:\.\d+)?%/g) ?? [])
+    .map(value => Number(value.replace("%", "")))
+    .filter(value => Number.isFinite(value));
+  const maxTransferred = percentages.length ? Math.max.apply(null, percentages) : 0;
+  return maxTransferred >= 1 && maxTransferred < 100;
+}
+
+// Fragmented (DASH/HLS) delivery re-signs each fragment, so an expiring media URL
+// affects only one small fragment instead of the whole transfer.
+export function ytDlpResumeAndFragmentArgs(): string[] {
+  return [
+    "--continue",
+    "--retries", "10",
+    "--fragment-retries", "20",
+    "--retry-sleep", "http:exp=1:30",
+    "--retry-sleep", "fragment:exp=1:20",
+    "--no-abort-on-unavailable-fragments",
+    "--concurrent-fragments", "1",
+    "--http-chunk-size", "10M",
+  ];
+}
+
+export const MAX_SUPPORTED_HEIGHT = 4320;
+
+export function resolveVideoHeightCeiling(quality: string, configuredCeiling = process.env.MEDIA_MAX_VIDEO_HEIGHT): number | null {
+  const requested = quality === "best" || quality === "max" ? null : Number(quality.replace("p", ""));
+  const ceilingValue = Number((configuredCeiling ?? "").trim());
+  const ceiling = Number.isInteger(ceilingValue) && ceilingValue > 0 ? Math.min(ceilingValue, MAX_SUPPORTED_HEIGHT) : null;
+  // "max" is the explicit maximum-available option and intentionally ignores the default ceiling.
+  if (quality === "max") return null;
+  if (requested === null) return ceiling;
+  if (ceiling === null) return requested;
+  return Math.min(requested, ceiling);
+}
+
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -175,6 +215,9 @@ function isYtDlpCommand(command: string): boolean {
 export function describeMediaCommandFailure(command: string, output: string): string {
   if (isYtDlpCommand(command) && /sign in to confirm you.?re not a bot|confirm you.?re not a bot/i.test(output)) {
     return "YouTube rejected this server before it exposed usable media metadata or streams. Native Media Studio already uses yt-dlp’s supported public clients and JavaScript runtime, but it does not store account credentials, generate externally enforced access tokens, or bypass verification controls. Try again later from a network where the source is publicly available, or use another source you are authorized to download.";
+  }
+  if (isYtDlpCommand(command) && isMidTransferStreamExpiry(output)) {
+    return "The media stream transferred partially and then its temporary URL expired before the transfer finished. This is a delivery-timing condition, not a block on this source. Native Media Studio resumes and retries automatically; retry the job, or choose a lower quality so large transfers finish inside the stream’s validity window.";
   }
   if (isYtDlpCommand(command) && /unable to download video data: HTTP Error 403|HTTP Error 403: Forbidden/i.test(output)) {
     return "YouTube denied a media-stream request for this source. Native Media Studio enabled its supported JavaScript runtime and retried the stream, but it does not bypass platform access controls. Wait and retry later, update the self-hosted image, or use another source you are authorized to download.";
@@ -338,13 +381,31 @@ export async function inspectYouTubeMedia(rawUrl: string): Promise<InspectedMedi
   };
 }
 
-function videoSelector(quality: string) {
-  if (quality === "best") return "bestvideo*+bestaudio/best";
-  const height = Number(quality.replace("p", ""));
-  if (!Number.isInteger(height) || ![1080, 720, 480, 360].includes(height)) {
-    throw new Error("Choose a supported video quality.");
+export function videoSelector(quality: string, configuredCeiling = process.env.MEDIA_MAX_VIDEO_HEIGHT) {
+  if (quality !== "best" && quality !== "max") {
+    const requested = Number(quality.replace("p", ""));
+    if (!Number.isInteger(requested) || ![2160, 1440, 1080, 720, 480, 360].includes(requested)) {
+      throw new Error("Choose a supported video quality.");
+    }
   }
-  return `bestvideo*[height<=${height}]+bestaudio/best[height<=${height}]`;
+  const height = resolveVideoHeightCeiling(quality, configuredCeiling);
+  // Prefer fragmented delivery (DASH first, then HLS/m3u8) before progressive delivery,
+  // because each fragment request is re-signed and survives stream-URL rotation.
+  if (height === null) {
+    return [
+      "bestvideo*[protocol*=dash]+bestaudio[protocol*=dash]",
+      "bestvideo*[protocol*=m3u8]+bestaudio[protocol*=m3u8]",
+      "bestvideo*+bestaudio",
+      "best",
+    ].join("/");
+  }
+  return [
+    `bestvideo*[height<=${height}][protocol*=dash]+bestaudio[protocol*=dash]`,
+    `bestvideo*[height<=${height}][protocol*=m3u8]+bestaudio[protocol*=m3u8]`,
+    `bestvideo*[height<=${height}]+bestaudio`,
+    `best[height<=${height}]`,
+    "best",
+  ].join("/");
 }
 
 function audioQuality(quality: string) {
@@ -426,9 +487,7 @@ export async function runMediaJob(jobId: string) {
       "--newline",
       ...ytDlpPublicClientArgs(),
       ...ytDlpJavaScriptRuntimeArgs(),
-      "--retries", "3",
-      "--fragment-retries", "3",
-      "--retry-sleep", "http:exp=1:5",
+      ...ytDlpResumeAndFragmentArgs(),
       "--progress-template", "download:%(progress._percent_str)s",
       "--ffmpeg-location", ffmpegLocation(),
       "--output", path.join(jobDir, "output.%(ext)s"),

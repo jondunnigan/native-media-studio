@@ -74,7 +74,15 @@ describe("Pterodactyl egg", () => {
   it("ships a strict standalone replacement import artifact", () => {
     expect(importEgg.meta.version).toBe("PTDL_v2");
     expect(importEgg.docker_images["Native Media Studio (Pterodactyl)"]).toBe("ghcr.io/jondunnigan/native-media-studio:latest");
-    expect(importEgg.variables).toHaveLength(4);
+    // Assert the exact configurable surface rather than a count, so an added or removed
+    // operator variable is caught by name in both egg artifacts.
+    const expectedVariables = ["DATABASE_URL", "JWT_SECRET", "MEDIA_WORK_DIR", "MIGRATION_RETRY_ATTEMPTS", "MEDIA_MAX_VIDEO_HEIGHT"];
+    expect(importEgg.variables.map(variable => variable.env_variable)).toEqual(expectedVariables);
+    expect(egg.variables.map(variable => variable.env_variable)).toEqual(expectedVariables);
+    const heightCeiling = importEgg.variables.find(variable => variable.env_variable === "MEDIA_MAX_VIDEO_HEIGHT");
+    // The ceiling must stay optional so existing deployments keep uncapped selection.
+    expect(heightCeiling.default_value).toBe("");
+    expect(heightCeiling.rules).toContain("nullable");
     const controlCharacters = [...importEggRaw].filter(character => {
       const code = character.charCodeAt(0);
       return code < 32 && character !== "\n" && character !== "\r" && character !== "\t";

@@ -71,3 +71,6 @@
 - [x] Add a safe startup path for historical media_jobs tables missing current columns and indexes.
 - [x] Test partial media_jobs schema handling with a clear startup outcome before the app serves conversions.
 - [x] Exercise startup reconciliation against a real temporary partial media_jobs table before serving conversions.
+- [x] Remove Manus-only analytics placeholders from self-hosted production HTML.
+- [x] Verify the Pterodactyl production build has no unresolved percent-encoded analytics URL.
+- [x] Add regression coverage that prevents self-hosted analytics placeholders from returning to the HTML entry point.

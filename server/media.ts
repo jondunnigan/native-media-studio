@@ -105,6 +105,12 @@ export function ytDlpJavaScriptRuntimeArgs(runtime = process.env.YTDLP_JS_RUNTIM
   return ["--js-runtimes", runtime];
 }
 
+export function ytDlpPublicClientArgs(): string[] {
+  // yt-dlp selects its supported public YouTube clients by default. Do not force a
+  // player_client override, which can require externally enforced access tokens.
+  return [];
+}
+
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -157,7 +163,7 @@ export function describeMediaCommandError(command: string, error: unknown): stri
 
 export function describeMediaCommandFailure(command: string, output: string): string {
   if (command === "yt-dlp" && /sign in to confirm you.?re not a bot|confirm you.?re not a bot/i.test(output)) {
-    return "YouTube rejected this server’s automated request for this source. Native Media Studio does not use account credentials or bypass verification controls. Please try a different source, wait and retry later, or use the application only where the source is publicly available to your self-hosted server.";
+    return "YouTube rejected this server before it exposed usable media metadata or streams. Native Media Studio already uses yt-dlp’s supported public clients and JavaScript runtime, but it does not store account credentials, generate externally enforced access tokens, or bypass verification controls. Try again later from a network where the source is publicly available, or use another source you are authorized to download.";
   }
   if (command === "yt-dlp" && /unable to download video data: HTTP Error 403|HTTP Error 403: Forbidden/i.test(output)) {
     return "YouTube denied a media-stream request for this source. Native Media Studio enabled its supported JavaScript runtime and retried the stream, but it does not bypass platform access controls. Wait and retry later, update the self-hosted image, or use another source you are authorized to download.";
@@ -279,7 +285,7 @@ export async function inspectYouTubeMedia(rawUrl: string): Promise<InspectedMedi
   await mkdir(tempDir, { recursive: true });
   const output = await runCommand(
     ytDlpPath(),
-    ["--no-playlist", "--no-warnings", ...ytDlpJavaScriptRuntimeArgs(), "--skip-download", "--dump-single-json", "--", sourceUrl],
+    ["--no-playlist", "--no-warnings", ...ytDlpPublicClientArgs(), ...ytDlpJavaScriptRuntimeArgs(), "--skip-download", "--dump-single-json", "--", sourceUrl],
     tempDir,
     METADATA_TIMEOUT_MS,
     undefined,
@@ -398,6 +404,7 @@ export async function runMediaJob(jobId: string) {
     const commonArgs = [
       "--no-playlist",
       "--newline",
+      ...ytDlpPublicClientArgs(),
       ...ytDlpJavaScriptRuntimeArgs(),
       "--retries", "3",
       "--fragment-retries", "3",

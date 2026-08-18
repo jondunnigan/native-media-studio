@@ -13,7 +13,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson, startMediaJob, ytDlpJavaScriptRuntimeArgs, ytDlpPublicClientArgs } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -99,13 +99,18 @@ describe("media tool prerequisites", () => {
     expect(ytDlpJavaScriptRuntimeArgs("off")).toEqual([]);
   });
 
+  it("keeps yt-dlp documented public-player selection by not forcing a player_client override", () => {
+    expect(ytDlpPublicClientArgs()).toEqual([]);
+  });
+
   it("converts an absent executable error into a clear setup instruction", () => {
     expect(describeMediaCommandError("yt-dlp", { code: "ENOENT" })).toContain("sudo pip3 install --upgrade yt-dlp");
   });
 
   it("does not expose cookie-bypass guidance when YouTube rejects automation", () => {
     const message = describeMediaCommandFailure("yt-dlp", "ERROR: [youtube] abc: Sign in to confirm you’re not a bot. Use --cookies-from-browser");
-    expect(message).toContain("does not use account credentials");
+    expect(message).toContain("before it exposed usable media metadata or streams");
+    expect(message).toContain("supported public clients");
     expect(message).not.toContain("--cookies-from-browser");
   });
 

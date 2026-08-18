@@ -97,3 +97,8 @@
 - [x] Configure yt-dlp to use the container’s Node.js JavaScript runtime for YouTube extraction.
 - [x] Detect and clearly report YouTube stream-level 403 failures without bypassing platform controls.
 - [x] Add regression coverage for Node-runtime yt-dlp arguments and stream-403 error messaging.
+- [x] Research and select documented yt-dlp public-player client settings for standard YouTube streams.
+- [x] Preserve yt-dlp’s documented default public-player selection rather than forcing an unsupported client override.
+- [x] Validate player-client argument construction and stream-selection diagnostics.
+- [x] Record and present the verified case where a supported unauthenticated client is rejected before metadata or stream delivery.
+- [x] Add a focused check that production yt-dlp arguments retain documented default public-client selection without a forced player_client override.

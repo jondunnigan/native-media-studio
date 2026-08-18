@@ -79,3 +79,6 @@
 - [x] Validate browser download delivery and post-download cleanup behavior.
 - [x] Add regression coverage for direct signed browser-download triggering.
 - [x] Exercise a signed download endpoint lifecycle and verify its one-time cleanup behavior through the delivered URL path.
+- [x] Normalize standard YouTube watch URLs by retaining only the intended video identifier.
+- [x] Strip playlist, radio, timestamp, and tracking parameters before yt-dlp inspection and conversion.
+- [x] Add regression coverage for Shorts, watch, and shortened YouTube links.

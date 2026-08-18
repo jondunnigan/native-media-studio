@@ -12,7 +12,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, parseProgressPercent, parseYtDlpMetadataJson } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, normalizeYouTubeUrl, parseProgressPercent, parseYtDlpMetadataJson } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -20,6 +20,17 @@ describe("media URL policy", () => {
     expect(isSupportedYouTubeUrl("https://youtu.be/abc123")) .toBe(true);
     expect(isSupportedYouTubeUrl("https://example.com/watch?v=abc123")) .toBe(false);
     expect(isSupportedYouTubeUrl("javascript:alert(1)")) .toBe(false);
+  });
+
+  it("normalizes watch, Shorts, and shortened links to a single-video watch URL", () => {
+    expect(normalizeYouTubeUrl("https://www.youtube.com/watch?v=ECZigYVaa8I&list=RDECZigYVaa8I&start_radio=1")).toBe("https://www.youtube.com/watch?v=ECZigYVaa8I");
+    expect(normalizeYouTubeUrl("https://youtube.com/shorts/ECZigYVaa8I?feature=share")).toBe("https://www.youtube.com/watch?v=ECZigYVaa8I");
+    expect(normalizeYouTubeUrl("https://youtu.be/ECZigYVaa8I?t=42")).toBe("https://www.youtube.com/watch?v=ECZigYVaa8I");
+  });
+
+  it("rejects non-video YouTube pages rather than passing playlist or channel URLs to yt-dlp", () => {
+    expect(() => normalizeYouTubeUrl("https://www.youtube.com/playlist?list=RDECZigYVaa8I")).toThrow("single YouTube video");
+    expect(() => normalizeYouTubeUrl("https://www.youtube.com/channel/example")).toThrow("single YouTube video");
   });
 });
 

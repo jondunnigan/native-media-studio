@@ -54,19 +54,37 @@ export type InspectedMedia = {
 
 export function isSupportedYouTubeUrl(rawUrl: string): boolean {
   try {
-    const url = new URL(rawUrl);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
-    return host === "youtube.com" || host === "m.youtube.com" || host === "youtu.be";
+    normalizeYouTubeUrl(rawUrl);
+    return true;
   } catch {
     return false;
   }
 }
 
-function assertSupportedYouTubeUrl(rawUrl: string) {
-  if (!isSupportedYouTubeUrl(rawUrl)) {
-    throw new Error("Enter a valid YouTube URL. This app does not accept arbitrary video hosts.");
+export function normalizeYouTubeUrl(rawUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error("Enter a valid YouTube video or Shorts URL. This app does not accept arbitrary video hosts or playlists.");
   }
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new Error("Enter a valid YouTube video or Shorts URL. This app does not accept arbitrary video hosts or playlists.");
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  let videoId: string | undefined;
+
+  if (host === "youtu.be") {
+    videoId = url.pathname.split("/").filter(Boolean)[0];
+  } else if (host === "youtube.com" || host === "m.youtube.com") {
+    if (url.pathname === "/watch") videoId = url.searchParams.get("v") ?? undefined;
+    if (url.pathname.startsWith("/shorts/")) videoId = url.pathname.split("/").filter(Boolean)[1];
+  }
+
+  if (!videoId || !/^[A-Za-z0-9_-]{6,64}$/.test(videoId)) throw new Error("A single YouTube video identifier is required.");
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+}
+
+function assertSupportedYouTubeUrl(rawUrl: string): string {
+  return normalizeYouTubeUrl(rawUrl);
 }
 
 function getWorkDir() {
@@ -247,12 +265,12 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
 }
 
 export async function inspectYouTubeMedia(rawUrl: string): Promise<InspectedMedia> {
-  assertSupportedYouTubeUrl(rawUrl);
+  const sourceUrl = assertSupportedYouTubeUrl(rawUrl);
   const tempDir = path.join(getWorkDir(), "inspection");
   await mkdir(tempDir, { recursive: true });
   const output = await runCommand(
     ytDlpPath(),
-    ["--no-playlist", "--no-warnings", "--skip-download", "--dump-single-json", "--", rawUrl],
+    ["--no-playlist", "--no-warnings", "--skip-download", "--dump-single-json", "--", sourceUrl],
     tempDir,
     METADATA_TIMEOUT_MS,
     undefined,
@@ -335,12 +353,12 @@ export async function startMediaJob(input: {
   requestedQuality: string;
   outputFormat: string;
 }) {
-  assertSupportedYouTubeUrl(input.sourceUrl);
+  const sourceUrl = assertSupportedYouTubeUrl(input.sourceUrl);
   const id = nanoid(24);
   await db.createMediaJob({
     id,
     ownerSessionId: input.ownerSessionId,
-    sourceUrl: input.sourceUrl,
+    sourceUrl,
     sourceId: input.sourceId,
     title: input.title.slice(0, 255),
     thumbnailUrl: input.thumbnailUrl,

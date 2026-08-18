@@ -74,3 +74,8 @@
 - [x] Remove Manus-only analytics placeholders from self-hosted production HTML.
 - [x] Verify the Pterodactyl production build has no unresolved percent-encoded analytics URL.
 - [x] Add regression coverage that prevents self-hosted analytics placeholders from returning to the HTML entry point.
+- [x] Diagnose why completed conversion files remain only in media-jobs without a user download action.
+- [x] Add a clear conversion-complete notification and signed download control.
+- [x] Validate browser download delivery and post-download cleanup behavior.
+- [x] Add regression coverage for direct signed browser-download triggering.
+- [x] Exercise a signed download endpoint lifecycle and verify its one-time cleanup behavior through the delivered URL path.

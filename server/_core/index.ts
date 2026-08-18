@@ -2,16 +2,16 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { createReadStream } from "fs";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { registerMediaDeliveryRoute } from "./mediaDelivery";
 import { ENV } from "./env";
 import { CONTAINER_BIND_HOST, getAssignedPort } from "./networkBinding";
 import { isOAuthEnabled } from "./runtimeMode";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
-import { claimDownload, cleanExpiredMediaJobs, getAnonymousSessionId, getOwnedMediaJob, markDownloadedAndRemove, onJobEvent } from "../media";
+import { cleanExpiredMediaJobs, getAnonymousSessionId, getOwnedMediaJob, onJobEvent } from "../media";
 
 async function startServer() {
   const app = express();
@@ -25,17 +25,7 @@ async function startServer() {
   } else {
     console.log("[OAuth] Disabled: self-hosted anonymous mode is active.");
   }
-  app.get("/api/media/download/:id", async (req, res) => {
-    const token = typeof req.query.token === "string" ? req.query.token : "";
-    const job = await claimDownload(req.params.id, token);
-    if (!job || !job.outputPath || !job.outputName) return res.status(404).send("This download link is invalid or has expired.");
-    res.setHeader("Content-Type", job.outputMime || "application/octet-stream");
-    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(job.outputName)}`);
-    const stream = createReadStream(job.outputPath);
-    stream.on("error", () => res.status(404).end());
-    res.on("finish", () => void markDownloadedAndRemove(job));
-    stream.pipe(res);
-  });
+  registerMediaDeliveryRoute(app);
   app.get("/api/media/jobs/:id/events", async (req, res) => {
     const sessionId = getAnonymousSessionId(req, res);
     const job = await getOwnedMediaJob(req.params.id, sessionId);

@@ -1,7 +1,8 @@
 import { trpc } from "@/lib/trpc";
+import { triggerBrowserDownload } from "@/lib/browserDownload";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, CircleHelp, Clock3, Download, FileAudio2, Film, Link2, Loader2, LockKeyhole, Play, ShieldCheck, Sparkles, X } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type MediaMode = "video" | "audio";
@@ -15,6 +16,8 @@ type ProgressEvent = {
   outputName?: string | null;
   outputBytes?: number | null;
 };
+
+type ReadyDownload = Pick<ProgressEvent, "id" | "outputName" | "outputBytes" | "expiresAt">;
 
 const videoQualities = [
   { value: "best", label: "Best available" },
@@ -64,6 +67,8 @@ export default function Home() {
   const [liveJob, setLiveJob] = useState<ProgressEvent | null>(null);
   const [eventStreamDisconnected, setEventStreamDisconnected] = useState(false);
   const [sourceAvailabilityError, setSourceAvailabilityError] = useState<string | null>(null);
+  const [readyDownload, setReadyDownload] = useState<ReadyDownload | null>(null);
+  const announcedReadyJobs = useRef(new Set<string>());
   const inspect = trpc.media.inspect.useMutation();
   const start = trpc.media.start.useMutation();
   const history = trpc.media.list.useQuery(undefined, { refetchInterval: 5000 });
@@ -77,6 +82,14 @@ export default function Home() {
 
   const activeHistoryJob = useMemo(() => history.data?.find(job => job.id === activeJobId), [activeJobId, history.data]);
   const status = eventStreamDisconnected ? activeHistoryJob ?? liveJob : liveJob ?? activeHistoryJob ?? null;
+
+  useEffect(() => {
+    if (status?.status !== "ready" || announcedReadyJobs.current.has(status.id)) return;
+    announcedReadyJobs.current.add(status.id);
+    const name = status.outputName || "Your file";
+    setReadyDownload({ id: status.id, outputName: status.outputName, outputBytes: status.outputBytes, expiresAt: status.expiresAt });
+    toast.success(`${name} is ready to download.`);
+  }, [status?.id, status?.status, status?.outputName, status?.outputBytes, status?.expiresAt]);
 
   useEffect(() => {
     if (!activeJobId) return;
@@ -138,6 +151,7 @@ export default function Home() {
       setActiveJobId(result.jobId);
       setLiveJob({ id: result.jobId, status: "queued", progress: 0, stage: "Queued" });
       setEventStreamDisconnected(false);
+      setReadyDownload(null);
       void history.refetch();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "We could not start this conversion.");
@@ -147,7 +161,10 @@ export default function Home() {
   async function download(id: string) {
     try {
       const result = await createDownloadLink.mutateAsync({ id });
-      window.location.assign(result.url);
+      const filename = history.data?.find(job => job.id === id)?.outputName || readyDownload?.outputName || "media-download";
+      triggerBrowserDownload(document, result.url, filename);
+      setReadyDownload(current => current?.id === id ? null : current);
+      toast.success("Your browser download has started.");
       void history.refetch();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "This file is no longer available.");
@@ -256,6 +273,22 @@ export default function Home() {
                 <div className="progress-header"><span className="pulse-dot" /><div><strong>{status.stage}</strong><p>{status.status === "ready" ? "Your file is available for the next 15 minutes." : status.failureMessage || "Keep this tab open while your file is prepared."}</p></div><span className="progress-number">{status.progress}%</span></div>
                 <div className="progress-track"><span style={{ width: `${status.progress}%` }} /></div>
                 {status.status === "ready" && <button className="download-ready" onClick={() => download(status.id)}><Download size={16} /> Download now</button>}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {readyDownload && (
+              <motion.div className="completion-backdrop" role="presentation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.section className="completion-dialog" role="dialog" aria-modal="true" aria-labelledby="download-ready-title" initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.98 }} transition={{ type: "spring", stiffness: 320, damping: 26 }}>
+                  <button className="completion-close" onClick={() => setReadyDownload(null)} aria-label="Dismiss download dialog"><X size={18} /></button>
+                  <div className="completion-icon"><Check size={24} strokeWidth={3} /></div>
+                  <p className="completion-kicker">Conversion complete</p>
+                  <h2 id="download-ready-title">Your file is ready.</h2>
+                  <p className="completion-copy">{readyDownload.outputName || "Your converted media"}{readyDownload.outputBytes ? ` · ${bytes(readyDownload.outputBytes)}` : ""}. This private download link expires in {expiryLabel(readyDownload.expiresAt)}.</p>
+                  <button className="completion-download" onClick={() => download(readyDownload.id)} disabled={createDownloadLink.isPending}>{createDownloadLink.isPending ? <Loader2 className="spin" size={17} /> : <Download size={17} />} Download file</button>
+                  <p className="completion-note">If the download does not open automatically, allow downloads for this site and use the button again.</p>
+                </motion.section>
               </motion.div>
             )}
           </AnimatePresence>

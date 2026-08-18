@@ -58,3 +58,8 @@
 - [x] Generate and validate a strict canonical JSON egg artifact for direct import.
 - [x] Deliver the replacement egg file with exact import instructions.
 - [x] Save and deliver the exact standalone replacement egg artifact for import.
+- [x] Diagnose the yt-dlp control-character metadata parsing failure during source inspection.
+- [x] Normalize malformed control characters before parsing source metadata JSON.
+- [x] Add parser regression tests and validate the repaired inspection flow.
+- [x] Preserve yt-dlp stdout across chunk boundaries so metadata JSON is never rebuilt with injected line breaks.
+- [x] Exercise the inspection path with chunked malformed yt-dlp metadata and verify successful parsed output.

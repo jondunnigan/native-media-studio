@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { existsSync } from "fs";
-import { mkdir, rm, writeFile } from "fs/promises";
+import { chmod, mkdir, rm, writeFile } from "fs/promises";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaJob } from "../drizzle/schema";
@@ -12,7 +12,7 @@ vi.mock("./db", () => ({
   getReadyMediaJobByToken: vi.fn(),
 }));
 
-import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, parseProgressPercent } from "./media";
+import { canClaimDownload, canTransitionJob, claimDownload, describeMediaCommandError, describeMediaCommandFailure, inspectYouTubeMedia, isReadyWithinExpiry, isSupportedYouTubeUrl, markDownloadedAndRemove, normalizeJsonControlCharacters, parseProgressPercent, parseYtDlpMetadataJson } from "./media";
 
 describe("media URL policy", () => {
   it("permits canonical YouTube URLs and blocks arbitrary hosts", () => {
@@ -28,6 +28,55 @@ describe("progress parsing", () => {
     expect(parseProgressPercent("download: 43.9%")).toBe(43);
     expect(parseProgressPercent("[download] 100.0% of 12MiB")).toBe(99);
     expect(parseProgressPercent("merging formats")).toBeNull();
+  });
+});
+
+describe("yt-dlp metadata parsing", () => {
+  it("repairs raw control characters only when they occur inside JSON strings", () => {
+    const malformed = `{"id":"source-id","title":"First line
+Second line","formats":[]}`;
+    const normalized = normalizeJsonControlCharacters(malformed);
+    expect(normalized).toContain("First line\\nSecond line");
+    expect(parseYtDlpMetadataJson(malformed)).toMatchObject({
+      id: "source-id",
+      title: "First line\nSecond line",
+    });
+  });
+
+  it("preserves ordinary valid yt-dlp JSON metadata", () => {
+    const valid = JSON.stringify({ id: "source-id", title: "A valid title", formats: [] });
+    expect(parseYtDlpMetadataJson(valid)).toMatchObject({ id: "source-id", title: "A valid title" });
+  });
+
+  it("inspects chunked malformed stdout without injecting new JSON line breaks", async () => {
+    const previousWorkDir = process.env.MEDIA_WORK_DIR;
+    const previousYtDlpPath = process.env.YTDLP_PATH;
+    const workDir = path.join("/tmp", "nms-inspection-test");
+    const fixturePath = path.join(workDir, "yt-dlp-fixture.sh");
+
+    try {
+      await mkdir(workDir, { recursive: true });
+      await writeFile(fixturePath, "#!/bin/sh\nprintf '%s' '{\"id\":\"chunked-id\",\"title\":\"First chunk'\nsleep 0.01\nprintf '\\n'\nprintf '%s\\n' 'second line\",\"thumbnail\":\"https://image.test/thumb.jpg\",\"duration\":42,\"formats\":[{\"format_id\":\"18\",\"ext\":\"mp4\",\"resolution\":\"360p\",\"vcodec\":\"avc1\",\"acodec\":\"mp4a\",\"filesize\":1234}]}'\n");
+      await chmod(fixturePath, 0o755);
+      process.env.MEDIA_WORK_DIR = workDir;
+      process.env.YTDLP_PATH = fixturePath;
+
+      const inspected = await inspectYouTubeMedia("https://www.youtube.com/watch?v=chunked-id");
+
+      expect(inspected).toMatchObject({
+        id: "chunked-id",
+        title: "First chunk\nsecond line",
+        thumbnail: "https://image.test/thumb.jpg",
+        durationSeconds: 42,
+      });
+      expect(inspected.formats[0]).toMatchObject({ id: "18", extension: "mp4", hasVideo: true, hasAudio: true, estimatedBytes: 1234 });
+    } finally {
+      await rm(workDir, { recursive: true, force: true });
+      if (previousWorkDir === undefined) delete process.env.MEDIA_WORK_DIR;
+      else process.env.MEDIA_WORK_DIR = previousWorkDir;
+      if (previousYtDlpPath === undefined) delete process.env.YTDLP_PATH;
+      else process.env.YTDLP_PATH = previousYtDlpPath;
+    }
   });
 });
 

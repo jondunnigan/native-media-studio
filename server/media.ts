@@ -138,6 +138,60 @@ export function describeMediaCommandFailure(command: string, output: string): st
   return output || `${command} ended without a successful result.`;
 }
 
+export function normalizeJsonControlCharacters(rawJson: string): string {
+  let result = "";
+  let inString = false;
+  let escaped = false;
+
+  for (const character of rawJson) {
+    if (!inString) {
+      if (character === '"') inString = true;
+      result += character;
+      continue;
+    }
+
+    if (escaped) {
+      result += character;
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      result += character;
+      escaped = true;
+      continue;
+    }
+
+    if (character === '"') {
+      result += character;
+      inString = false;
+      continue;
+    }
+
+    if (character.charCodeAt(0) < 32) {
+      result += JSON.stringify(character).slice(1, -1);
+      continue;
+    }
+
+    result += character;
+  }
+
+  return result;
+}
+
+export function parseYtDlpMetadataJson(rawJson: string): YoutubeMetadata {
+  try {
+    return JSON.parse(rawJson) as YoutubeMetadata;
+  } catch {
+    const normalized = normalizeJsonControlCharacters(rawJson);
+    try {
+      return JSON.parse(normalized) as YoutubeMetadata;
+    } catch {
+      throw new Error("The source returned malformed metadata that could not be safely read.");
+    }
+  }
+}
+
 export function isReadyWithinExpiry(job: Pick<MediaJob, "status" | "expiresAt">, now = new Date()): boolean {
   return job.status === "ready" && Boolean(job.expiresAt && job.expiresAt.getTime() > now.getTime());
 }
@@ -163,17 +217,19 @@ export function canTransitionJob(from: JobStatus, to: JobStatus): boolean {
   return from === to || allowedTransitions[from].includes(to);
 }
 
-async function runCommand(command: string, args: string[], cwd: string, timeoutMs: number, onLine?: (line: string) => void) {
-  return new Promise<void>((resolve, reject) => {
+async function runCommand(command: string, args: string[], cwd: string, timeoutMs: number, onLine?: (line: string) => void, captureStdout = false) {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(command, args, { cwd, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-    let output = "";
-    const consume = (chunk: Buffer) => {
+    let diagnosticOutput = "";
+    let stdout = "";
+    const consume = (chunk: Buffer, isStdout: boolean) => {
       const text = chunk.toString();
-      output = `${output}${text}`.slice(-8000);
+      diagnosticOutput = `${diagnosticOutput}${text}`.slice(-8000);
+      if (captureStdout && isStdout) stdout += text;
       text.split(/\r?\n/).filter(Boolean).forEach(line => onLine?.(line));
     };
-    child.stdout.on("data", consume);
-    child.stderr.on("data", consume);
+    child.stdout.on("data", chunk => consume(chunk, true));
+    child.stderr.on("data", chunk => consume(chunk, false));
     const timeout = setTimeout(() => {
       child.kill("SIGKILL");
       reject(new Error("The media operation exceeded the configured time limit."));
@@ -184,8 +240,8 @@ async function runCommand(command: string, args: string[], cwd: string, timeoutM
     });
     child.on("close", code => {
       clearTimeout(timeout);
-      if (code === 0) resolve();
-      else reject(new Error(describeMediaCommandFailure(command, output || `${command} exited with code ${code ?? "unknown"}.`)));
+      if (code === 0) resolve(stdout);
+      else reject(new Error(describeMediaCommandFailure(command, diagnosticOutput || `${command} exited with code ${code ?? "unknown"}.`)));
     });
   });
 }
@@ -194,11 +250,15 @@ export async function inspectYouTubeMedia(rawUrl: string): Promise<InspectedMedi
   assertSupportedYouTubeUrl(rawUrl);
   const tempDir = path.join(getWorkDir(), "inspection");
   await mkdir(tempDir, { recursive: true });
-  let output = "";
-  await runCommand(ytDlpPath(), ["--no-playlist", "--no-warnings", "--skip-download", "--dump-single-json", "--", rawUrl], tempDir, METADATA_TIMEOUT_MS, line => {
-    output = `${output}${line}\n`;
-  });
-  const metadata = JSON.parse(output) as YoutubeMetadata;
+  const output = await runCommand(
+    ytDlpPath(),
+    ["--no-playlist", "--no-warnings", "--skip-download", "--dump-single-json", "--", rawUrl],
+    tempDir,
+    METADATA_TIMEOUT_MS,
+    undefined,
+    true,
+  );
+  const metadata = parseYtDlpMetadataJson(output);
   if (!metadata.id || !metadata.title) throw new Error("The source did not provide usable media metadata.");
   const formats = (metadata.formats ?? [])
     .filter(format => format.format_id && format.ext)
